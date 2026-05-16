@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --honey: #F5A623;
+  --honey-glow: rgba(245, 166, 35, 0.4);
+  --honey-dim: rgba(245, 166, 35, 0.08);
+  --honey-border: rgba(245, 166, 35, 0.2);
+  
+  --black: #050505;
+  --surface: #0C0C0C;
+  --card: #121212;
+  --card-hover: #181818;
+  
+  --white: #FFFFFF;
+  --secondary: rgba(255, 255, 255, 0.7);
+  --muted: rgba(255, 255, 255, 0.45);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-bright: rgba(255, 255, 255, 0.12);
+  
+  --red: #FF4D4D;
+  --red-dim: rgba(255, 77, 77, 0.1);
+  --green: #27C96B;
+  --green-dim: rgba(39, 201, 107, 0.1);
+
+  --background: var(--black);
+  --foreground: var(--white);
+}
+
+@theme inline {
+  --color-honey: var(--honey);
+  --color-honey-dim: var(--honey-dim);
+  --color-honey-border: var(--honey-border);
+  
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-border-dim: var(--border);
+  --color-border-bright: var(--border-bright);
+  
+  --color-red-buzz: var(--red);
+  --color-red-dim: var(--red-dim);
+  --color-green-buzz: var(--green);
+  --color-green-dim: var(--green-dim);
+
+  --font-syne: "Syne", sans-serif;
+  --font-jakarta: "Plus Jakarta Sans", sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jakarta);
+  -webkit-font-smoothing: antialiased;
+}
+
+.syne {
+  font-family: var(--font-syne);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--black);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-bright);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
