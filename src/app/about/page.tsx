@@ -45,7 +45,7 @@ export default function AboutPage() {
 
             <h1 className="syne text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.05]">
               Redefining Reach.<br />
-              <span className="bg-gradient-to-r from-honey via-[#f5a623] to-orange-500 bg-clip-text text-transparent">Empowering the Hive.</span>
+              <span className="bg-gradient-to-r from-honey via-[#f5a623] to-orange-500 bg-clip-text text-transparent">empowering the unemployed</span>
             </h1>
 
             <p className="text-base sm:text-lg md:text-xl text-secondary max-w-3xl mx-auto mb-10 font-light leading-relaxed">
