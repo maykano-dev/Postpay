@@ -31,6 +31,18 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+  const menuRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick)
+    return () => document.removeEventListener("mousedown", handleOutsideClick)
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -120,20 +132,13 @@ export default function DashboardLayout({
             })}
           </nav>
 
-          <div className="mt-auto space-y-4 pt-6 border-t border-border-dim">
+          <div className="mt-auto pt-6 border-t border-border-dim">
             <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
               <div className="text-[10px] uppercase font-bold tracking-widest text-muted mb-1">
                 {profile?.role === "broadcaster" ? "Available Balance" : "Account Credits"}
               </div>
               <div className="text-xl font-black text-honey">{formatCurrency(profile?.balance || 0)}</div>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 p-4 text-sm font-semibold text-muted hover:text-red-buzz transition-colors"
-            >
-              <LogOut size={20} />
-              Sign Out
-            </button>
           </div>
         </div>
       </aside>
@@ -141,7 +146,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative lg:pl-72">
         {/* Header */}
-        <header className="h-20 border-b border-border-dim flex items-center justify-between px-6 bg-black fixed top-0 left-0 right-0 lg:static z-30">
+        <header className="h-20 border-b border-border-dim flex items-center justify-between px-6 bg-black fixed top-0 left-0 right-0 lg:static z-35">
           <button 
             className="lg:hidden p-2 text-secondary"
             onClick={() => setSidebarOpen(true)}
@@ -149,15 +154,49 @@ export default function DashboardLayout({
             <Menu size={24} />
           </button>
           
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-4 ml-auto relative" ref={menuRef}>
             <NotificationsBell />
-            <div className="hidden sm:block text-right">
+            <div className="hidden sm:block text-right select-none cursor-pointer" onClick={() => setMenuOpen(!menuOpen)}>
               <div className="text-sm font-bold">{profile?.full_name}</div>
               <div className="text-[10px] uppercase font-bold text-muted tracking-widest">{profile?.role}</div>
             </div>
-            <div className="w-10 h-10 bg-gradient-to-tr from-honey to-orange-400 rounded-xl flex items-center justify-center font-black text-black">
+            
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="w-10 h-10 bg-gradient-to-tr from-honey to-orange-400 rounded-xl flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-all select-none cursor-pointer focus:outline-none"
+            >
               {profile?.full_name?.charAt(0)}
-            </div>
+            </button>
+
+            {/* Profile Dropdown Menu */}
+            {menuOpen && (
+              <div className="absolute right-0 top-14 w-56 bg-surface border border-white/10 rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.85)] animate-fade-in z-50">
+                <div className="p-3 border-b border-white/5 sm:hidden">
+                  <div className="text-sm font-bold text-white truncate">{profile?.full_name}</div>
+                  <div className="text-[9px] uppercase font-bold text-muted tracking-widest mt-0.5">{profile?.role}</div>
+                </div>
+                
+                <Link 
+                  href={profile?.role === "broadcaster" ? "/dashboard/broadcaster/settings" : profile?.role === "business" ? "/dashboard/business/settings" : "/dashboard/broadcaster/settings"}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 p-3 text-xs font-bold text-secondary hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                >
+                  <Settings size={16} />
+                  Manage Account
+                </Link>
+
+                <button 
+                  onClick={() => {
+                    setMenuOpen(false)
+                    handleLogout()
+                  }}
+                  className="flex w-full items-center gap-3 p-3 text-xs font-bold text-red-buzz/80 hover:text-red-buzz hover:bg-red-buzz/5 rounded-xl transition-all"
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </header>
 

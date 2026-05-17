@@ -79,6 +79,9 @@ export interface Campaign {
   starts_at?: string
   ends_at?: string
   created_at: string
+  business?: {
+    full_name: string
+  }
 }
 
 // ── AD SLOTS ───────────────────────────────────────────────
