@@ -132,13 +132,20 @@ export default function DashboardLayout({
             })}
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-border-dim">
+          <div className="mt-auto space-y-4 pt-6 border-t border-border-dim">
             <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
               <div className="text-[10px] uppercase font-bold tracking-widest text-muted mb-1">
                 {profile?.role === "broadcaster" ? "Available Balance" : "Account Credits"}
               </div>
               <div className="text-xl font-black text-honey">{formatCurrency(profile?.balance || 0)}</div>
             </div>
+            <button 
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 p-4 text-sm font-semibold text-muted hover:text-red-buzz transition-colors"
+            >
+              <LogOut size={20} />
+              Sign Out
+            </button>
           </div>
         </div>
       </aside>
@@ -205,7 +212,10 @@ export default function DashboardLayout({
         </main>
         
         {/* Mobile Floating Pill Bottom Dock */}
-        <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0f0f12] border border-honey/25 px-3 py-2.5 rounded-full flex items-center gap-2 shadow-[0_15px_35px_rgba(0,0,0,0.95)] max-w-[95vw] w-fit select-none">
+        <nav className={cn(
+          "lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0f0f12] border border-honey/25 px-3 py-2.5 rounded-full flex items-center gap-2 shadow-[0_15px_35px_rgba(0,0,0,0.95)] max-w-[95vw] w-fit select-none transition-all duration-500 ease-in-out",
+          sidebarOpen ? "opacity-0 pointer-events-none translate-y-10 scale-95" : "opacity-100 translate-y-0 scale-100"
+        )}>
           {links.map((link) => {
             const Icon = link.icon
             const active = pathname === link.href
