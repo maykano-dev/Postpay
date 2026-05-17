@@ -69,11 +69,9 @@ export default function BroadcasterCampaignsPage() {
               
               <div className="p-5 space-y-4 flex-1 flex flex-col bg-[#0c0c0e]/40">
                 <div className="flex justify-between items-center gap-2">
-                  {campaign.business?.full_name && (
-                    <div className="text-[9px] uppercase font-black text-honey tracking-widest bg-honey/5 border border-honey/10 px-2.5 py-1 rounded-lg">
-                      {campaign.business.full_name}
-                    </div>
-                  )}
+                  <div className="text-[9px] uppercase font-black text-honey tracking-widest bg-honey/5 border border-honey/10 px-2.5 py-1 rounded-lg">
+                    {campaign.business?.full_name || "Official Partner"}
+                  </div>
                   <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-muted ml-auto">
                     <Zap size={10} fill="currentColor" className="text-honey animate-pulse" />
                     High Priority
@@ -90,8 +88,6 @@ export default function BroadcasterCampaignsPage() {
                     <div className="text-sm font-black text-white">{(campaign.target_views - campaign.views_delivered).toLocaleString()}</div>
                   </div>
                 </div>
-
-                <p className="text-xs text-secondary font-light line-clamp-2 leading-relaxed">{campaign.description}</p>
 
                 <div className="mt-auto pt-4 border-t border-white/5">
                   <Button className="w-full h-9 text-xs font-black uppercase tracking-wider bg-honey text-black hover:bg-honey/95" asChild>
