@@ -29,17 +29,8 @@ import { useUser } from "@/hooks/useUser"
 
 export default function LandingPage() {
   const { profile } = useUser()
-  const [budget, setBudget] = React.useState(2500)
-  const [activeTab, setActiveTab] = React.useState<"biz" | "earn">("biz")
-  const [calcPlatform, setCalcPlatform] = React.useState<AdPlatform>("whatsapp")
 
   const ALL_PLATFORMS: AdPlatform[] = ["whatsapp", "instagram", "snapchat", "tiktok", "facebook"]
-
-  // Per-platform calculations
-  const views = (budget / PLATFORM_BUSINESS_CPM[calcPlatform]) * 1000
-  const flyers = budget / 10
-  const ratio = Math.round(views / flyers)
-  const broadcasterEarnings = (views / 1000) * PLATFORM_BROADCASTER_CPM[calcPlatform]
 
   return (
     <div className="min-h-screen bg-black overflow-x-hidden selection:bg-honey selection:text-black">
@@ -240,69 +231,6 @@ export default function LandingPage() {
               <Zap size={16} className="text-honey" /> WhatsApp has the highest engagement rate in Ghana — recommended for all campaigns.
             </div>
           </div>
-        </section>
-
-        {/* Calculator */}
-        <section className="py-24 container mx-auto px-6">
-          <Card className="max-w-4xl mx-auto p-8 md:p-16 border-honey/10">
-            <div className="text-center mb-16">
-              <h2 className="syne text-4xl font-bold mb-4">Calculate Your Reach</h2>
-              <p className="text-secondary">See exactly how many people you reach vs. flyers.</p>
-            </div>
-
-            <div className="mb-12">
-              {/* Platform tabs */}
-              <div className="flex flex-wrap gap-2 mb-8 justify-center">
-                {ALL_PLATFORMS.map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setCalcPlatform(p)}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all",
-                      calcPlatform === p
-                        ? "bg-honey text-black"
-                        : "bg-white/5 text-secondary hover:bg-white/10"
-                    )}
-                  >
-                    {PLATFORM_ICONS[p]} {PLATFORM_LABELS[p]}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center mb-6">
-                <span className="font-bold text-lg">Your Budget (GHS)</span>
-                <span className="syne text-3xl font-black text-honey">{formatCurrency(budget)}</span>
-              </div>
-              <input 
-                type="range" 
-                min="250" 
-                max="10000" 
-                step="250"
-                value={budget}
-                onChange={(e) => setBudget(parseInt(e.target.value))}
-                className="w-full h-2 bg-border-dim rounded-lg appearance-none cursor-pointer accent-honey"
-              />
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-2xl font-black text-honey mb-2">{Math.round(views).toLocaleString()}</span>
-                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">PostPay Views</span>
-              </div>
-              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-2xl font-black text-red-buzz mb-2">{Math.round(flyers).toLocaleString()}</span>
-                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">Flyers Printed</span>
-              </div>
-              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-2xl font-black text-green-buzz mb-2">{ratio}x</span>
-                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">More Reach</span>
-              </div>
-              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-2xl font-black text-green-buzz mb-2">GHS {Math.round(broadcasterEarnings).toLocaleString()}</span>
-                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">Worker Earnings</span>
-              </div>
-            </div>
-          </Card>
         </section>
       </main>
 

@@ -142,11 +142,11 @@ export function ScreenshotUpload({ onUpload, onRemove, value }: ScreenshotUpload
       </span>
       
       {value ? (
-        <div className="relative group rounded-[36px] overflow-hidden border-2 border-honey/40 aspect-[9/16] w-full max-w-[310px] h-[550px] bg-[#0c0c0e] p-2.5 shadow-[0_20px_50px_rgba(245,166,35,0.15)] mx-auto flex items-center justify-center animate-fade-in transition-all hover:border-honey">
+        <div className="relative group rounded-3xl lg:rounded-[36px] overflow-hidden border-2 border-honey/40 w-full max-w-md lg:max-w-[310px] h-[320px] lg:h-[550px] lg:aspect-[9/16] bg-[#0c0c0e] p-2.5 shadow-[0_20px_50px_rgba(245,166,35,0.15)] mx-auto flex items-center justify-center animate-fade-in transition-all hover:border-honey">
           <img 
             src={value} 
             alt="Screenshot preview" 
-            className="w-full h-full object-contain rounded-[28px]"
+            className="w-full h-full object-contain rounded-2xl lg:rounded-[28px]"
           />
           <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-3">
             <button 
@@ -162,7 +162,7 @@ export function ScreenshotUpload({ onUpload, onRemove, value }: ScreenshotUpload
         <div 
           onClick={() => fileInputRef.current?.click()}
           className={cn(
-            "relative cursor-pointer group rounded-[36px] border-2 border-dashed border-white/20 hover:border-honey/60 bg-white/[0.02] hover:bg-honey/[0.02] transition-all flex flex-col items-center justify-center aspect-[9/16] w-full max-w-[310px] h-[550px] mx-auto shadow-[0_15px_40px_rgba(0,0,0,0.5)] select-none",
+            "relative cursor-pointer group rounded-3xl lg:rounded-[36px] border-2 border-dashed border-white/20 hover:border-honey/60 bg-white/[0.02] hover:bg-honey/[0.02] transition-all flex flex-col items-center justify-center w-full max-w-md lg:max-w-[310px] h-[280px] lg:h-[550px] lg:aspect-[9/16] mx-auto shadow-[0_15px_40px_rgba(0,0,0,0.5)] select-none",
             uploading && "pointer-events-none opacity-60"
           )}
         >

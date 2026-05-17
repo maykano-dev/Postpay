@@ -154,7 +154,7 @@ export default function SubmitScreenshotPage() {
   const theme = PLATFORM_THEMES[platform]
 
   return (
-    <div className="max-w-5xl mx-auto pb-24 px-4 sm:px-8">
+    <div className="max-w-5xl mx-auto pb-36 lg:pb-24 px-4 sm:px-8">
       {/* Top Navigation Row */}
       <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
         <Link 
