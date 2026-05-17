@@ -254,6 +254,7 @@ export default function LandingPage() {
                   <li><Link href="#how" className="hover:text-white transition-colors">How it works</Link></li>
                   <li><Link href="#compare" className="hover:text-white transition-colors">Compare</Link></li>
                   <li><Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
+                  <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
                 </ul>
               </div>
               <div className="space-y-4">

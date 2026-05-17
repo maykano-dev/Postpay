@@ -41,8 +41,9 @@ export function Navbar() {
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-10">
-          <Link href="#how" className="text-sm font-medium text-secondary hover:text-honey transition-colors">How it works</Link>
-          <Link href="#pricing" className="text-sm font-medium text-secondary hover:text-honey transition-colors">Pricing</Link>
+          <Link href="/#how" className="text-sm font-medium text-secondary hover:text-honey transition-colors">How it works</Link>
+          <Link href="/#pricing" className="text-sm font-medium text-secondary hover:text-honey transition-colors">Pricing</Link>
+          <Link href="/about" className="text-sm font-medium text-secondary hover:text-honey transition-colors">About Us</Link>
           
           {profile ? (
             <>
@@ -75,8 +76,9 @@ export function Navbar() {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-surface border-b border-border-dim p-6 flex flex-col gap-6 animate-in slide-in-from-top duration-300">
-          <Link href="#how" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>How it works</Link>
-          <Link href="#pricing" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
+          <Link href="/#how" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>How it works</Link>
+          <Link href="/#pricing" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
+          <Link href="/about" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>About Us</Link>
           
           {profile ? (
             <>
