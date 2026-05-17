@@ -170,6 +170,14 @@ export default function SubmitScreenshotPage() {
         </div>
       </div>
 
+      {/* Header (Always at the top) */}
+      <div className="space-y-2.5 text-left border-l-4 border-honey pl-4 mb-8">
+        <h1 className="syne text-3xl sm:text-4xl font-black flex items-center gap-2.5 text-white tracking-tight">
+          Submit Proof <Sparkles className="text-honey animate-pulse" size={24} />
+        </h1>
+        <p className="text-secondary text-sm font-light leading-relaxed">Upload a screenshot of your active status to initiate view verification.</p>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-12 items-start">
         {/* LEFT COLUMN: Premium Smartphone Skeleton Uploader */}
         <div className="w-full lg:w-[330px] shrink-0 lg:sticky lg:top-24 flex flex-col items-center self-start">
@@ -189,19 +197,12 @@ export default function SubmitScreenshotPage() {
 
         {/* RIGHT COLUMN: Instructions, Guidelines & Action Trigger */}
         <div className="flex-1 w-full space-y-8">
-          {/* Header */}
-          <div className="space-y-2.5 text-center lg:text-left border-l-4 border-honey pl-4">
-            <h1 className="syne text-3xl sm:text-4xl font-black flex items-center justify-center lg:justify-start gap-2.5 text-white tracking-tight">
-              Submit Proof <Sparkles className="text-honey animate-pulse" size={24} />
-            </h1>
-            <p className="text-secondary text-sm font-light leading-relaxed">Upload a screenshot of your active status to initiate view verification.</p>
-          </div>
 
           <div className="space-y-8">
 
 
             {/* Dynamic Platform Specific Instructions (Upgraded to luxurious step card boxes!) */}
-            <div className={`p-6 sm:p-8 border ${theme.border} bg-gradient-to-br ${theme.bgGradient} rounded-3xl space-y-6 shadow-xl`}>
+            <div className={`p-0 sm:p-8 border-0 sm:border ${theme.border} bg-transparent sm:bg-gradient-to-br ${theme.bgGradient} rounded-none sm:rounded-3xl space-y-6 shadow-none sm:shadow-xl`}>
               <div className="flex items-center gap-4 border-b border-white/5 pb-4">
                 <span className="text-4xl filter drop-shadow-md">{PLATFORM_ICONS[platform]}</span>
                 <div>
@@ -222,7 +223,7 @@ export default function SubmitScreenshotPage() {
             </div>
 
             {/* Submission Guidelines Checklists (Refined to a spacious grid layout) */}
-            <div className="space-y-4 bg-white/[0.02] border border-white/5 rounded-3xl p-6 sm:p-8 shadow-inner">
+            <div className="space-y-4 bg-transparent sm:bg-white/[0.02] border-0 sm:border border-white/5 rounded-none sm:rounded-3xl p-0 sm:p-8 shadow-none sm:shadow-inner">
               <h4 className="text-xs font-bold uppercase tracking-widest text-white flex items-center gap-2 border-b border-white/5 pb-3">
                 <ShieldCheck size={16} className="text-honey" /> Rules & Quality Guidelines
               </h4>
