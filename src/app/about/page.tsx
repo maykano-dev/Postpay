@@ -36,43 +36,143 @@ export default function AboutPage() {
 
         {/* HERO SECTION */}
         <section className="relative pt-32 pb-16 md:pt-48 md:pb-24 overflow-hidden z-10">
-          <div className="container mx-auto px-6 text-center max-w-4xl">
-            <Badge variant="honey" className="mb-6 py-1.5 px-4 bg-honey/10 border-honey/20 animate-pulse">
-              <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-honey">
-                ⚡ Built in Ghana, For Ghana.
-              </span>
-            </Badge>
+          <div className="container mx-auto px-6 max-w-6xl relative z-10">
+            <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+              
+              {/* Left Typography Block */}
+              <div className="lg:col-span-7 text-left space-y-6">
+                <Badge variant="honey" className="py-1.5 px-4 bg-honey/10 border-honey/20 animate-pulse">
+                  <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-honey">
+                    ⚡ Built in Ghana, For Ghana.
+                  </span>
+                </Badge>
 
-            <h1 className="syne text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.05]">
-              Redefining Reach.<br />
-              <span className="bg-gradient-to-r from-honey via-[#f5a623] to-orange-500 bg-clip-text text-transparent">empowering the unemployed</span>
-            </h1>
+                <h1 className="syne text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05]">
+                  Redefining Reach.<br />
+                  <span className="bg-gradient-to-r from-honey via-[#f5a623] to-orange-500 bg-clip-text text-transparent">empowering the unemployed</span>
+                </h1>
 
-            <p className="text-base sm:text-lg md:text-xl text-secondary max-w-3xl mx-auto mb-10 font-light leading-relaxed">
-              PostPay is the largest decentralized advertising network in Ghana. We turn everyday WhatsApp Statuses into powerful, high-trust billboards—connecting local brands with real communities.
-            </p>
+                <p className="text-base sm:text-lg text-secondary max-w-xl font-light leading-relaxed">
+                  PostPay is the largest decentralized advertising network in Ghana. We turn everyday WhatsApp Statuses into powerful, high-trust billboards—connecting local brands with real communities.
+                </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              {profile ? (
-                <Button size="lg" asChild>
-                  <Link href={`/dashboard/${profile.role}`}>
-                    Go to My Dashboard
-                    <ArrowRight size={18} className="ml-2" />
-                  </Link>
-                </Button>
-              ) : (
-                <>
-                  <Button size="lg" asChild>
-                    <Link href="/register?role=broadcaster">
-                      Start Earning Money
-                      <ArrowRight size={18} className="ml-2" />
-                    </Link>
-                  </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <Link href="/register">Launch a Campaign</Link>
-                  </Button>
-                </>
-              )}
+                <div className="flex flex-col sm:flex-row items-center justify-start gap-4 pt-2">
+                  {profile ? (
+                    <Button size="lg" className="w-full sm:w-auto font-black uppercase tracking-wider text-black bg-honey hover:bg-honey/95" asChild>
+                      <Link href={`/dashboard/${profile.role}`}>
+                        Go to My Dashboard
+                        <ArrowRight size={18} className="ml-2" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="lg" className="w-full sm:w-auto font-black uppercase tracking-wider text-black bg-honey hover:bg-honey/95" asChild>
+                        <Link href="/register?role=broadcaster">
+                          Start Earning Money
+                          <ArrowRight size={18} className="ml-2" />
+                        </Link>
+                      </Button>
+                      <Button size="lg" variant="outline" className="w-full sm:w-auto font-black uppercase tracking-wider text-white border-white/10 hover:bg-white/5" asChild>
+                        <Link href="/register">Launch a Campaign</Link>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Smartphone and Stats Mockup Block */}
+              <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+                <div className="relative w-full max-w-[320px] mr-0 lg:mr-4">
+                  {/* Decorative glowing backdrops */}
+                  <div className="absolute -inset-4 bg-gradient-to-tr from-honey/20 to-green-buzz/20 rounded-[3.5rem] blur-2xl opacity-60 pointer-events-none" />
+                  
+                  {/* Smartphone Frame */}
+                  <div className="relative bg-black/60 border-4 border-[#1f1f23] rounded-[3.5rem] p-3.5 shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl overflow-hidden aspect-[9/18] w-full border-white/5">
+                    {/* Screen Content (WhatsApp Status Simulation) */}
+                    <div className="relative h-full w-full rounded-[2.8rem] overflow-hidden bg-gradient-to-b from-[#0c0c0e] to-black p-4 pt-10 flex flex-col justify-between border border-white/5">
+                      
+                      {/* WhatsApp Mock Header */}
+                      <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-honey to-orange-500 flex items-center justify-center text-xs font-black text-black">
+                            K
+                          </div>
+                          <div className="text-left">
+                            <div className="text-[10px] font-bold text-white flex items-center gap-1.5">
+                              Kofi from Legon
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-buzz animate-pulse" />
+                            </div>
+                            <div className="text-[7px] text-muted uppercase font-bold tracking-wider">WhatsApp Status · Just now</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <span className="w-1 h-1 rounded-full bg-white/40" />
+                          <span className="w-1 h-1 rounded-full bg-white/40" />
+                          <span className="w-1 h-1 rounded-full bg-white/40" />
+                        </div>
+                      </div>
+
+                      {/* Status Ad Area */}
+                      <div className="my-6 relative rounded-2xl overflow-hidden aspect-[4/5] bg-surface border border-white/5 shadow-inner flex flex-col justify-between p-4">
+                        {/* Background overlay gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-[#140e05] via-black/85 to-[#0b0c0e] z-10" />
+                        
+                        {/* Mock Flyer Content */}
+                        <div className="relative z-20 flex flex-col items-center justify-center h-full text-center space-y-4">
+                          <div className="w-10 h-10 bg-honey/10 text-honey rounded-xl flex items-center justify-center border border-honey/20 shadow-[0_0_15px_rgba(245,166,35,0.2)]">
+                            <Zap size={20} fill="currentColor" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="syne text-xs font-black tracking-tight text-white uppercase">
+                              PostPay Launch
+                            </div>
+                            <div className="text-[8px] text-honey tracking-widest font-black uppercase">
+                              10K guaranteed reach
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Indicator Bar */}
+                        <div className="w-full bg-white/10 h-0.5 rounded-full relative z-20 overflow-hidden">
+                          <div className="bg-honey h-full w-2/3 rounded-full" />
+                        </div>
+                      </div>
+
+                      {/* Verified Badge and views count */}
+                      <div className="mt-auto pt-3 border-t border-white/5 flex items-center justify-between text-[9px]">
+                        <div className="flex items-center gap-1 text-green-buzz font-bold uppercase tracking-wider text-[8px]">
+                          <ShieldCheck size={11} className="text-green-buzz animate-pulse" />
+                          AI Verified
+                        </div>
+                        <span className="font-mono text-muted text-[8px]">1,824 Views</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Floating Widget 1: MoMo Payout */}
+                  <div className="absolute -left-8 top-1/4 bg-[#0c0c0e]/95 border border-green-buzz/20 backdrop-blur-md rounded-2xl p-2.5 shadow-2xl flex items-center gap-3 animate-bounce duration-1000 z-40 max-w-[150px] text-left">
+                    <div className="w-8 h-8 rounded-xl bg-green-buzz/10 text-green-buzz flex items-center justify-center shrink-0">
+                      <Wallet size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[7px] text-muted uppercase font-bold tracking-wider">Withdrawal</div>
+                      <div className="text-[11px] font-black text-green-buzz truncate">GHS 240.00</div>
+                    </div>
+                  </div>
+
+                  {/* Floating Widget 2: AI Audit */}
+                  <div className="absolute -right-6 bottom-1/4 bg-[#0c0c0e]/95 border border-honey/20 backdrop-blur-md rounded-2xl p-2.5 shadow-2xl flex items-center gap-3 z-40 max-w-[150px] text-left">
+                    <div className="w-8 h-8 rounded-xl bg-honey/10 text-honey flex items-center justify-center shrink-0">
+                      <Cpu size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[7px] text-muted uppercase font-bold tracking-wider">AI Audit</div>
+                      <div className="text-[11px] font-black text-honey truncate">Legit: 100%</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </section>
