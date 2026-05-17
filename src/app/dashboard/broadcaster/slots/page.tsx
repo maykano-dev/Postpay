@@ -12,6 +12,40 @@ export default function ActiveSlotsPage() {
   const { profile, supabase } = useUser()
   const [takenJobs, setTakenJobs] = React.useState<any[]>([])
   const [loadingJobs, setLoadingJobs] = React.useState(true)
+  const [forfeitingId, setForfeitingId] = React.useState<string | null>(null)
+
+  const formatDeadline = (dateStr: string) => {
+    const d = new Date(dateStr)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    
+    const diffTime = target.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    
+    if (diffDays === 0) return `Today, ${timeStr}`
+    if (diffDays === 1) return `Tomorrow, ${timeStr}`
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`
+  }
+
+  const handleForfeit = async (slotId: string) => {
+    if (!confirm("Are you sure you want to forfeit this slot? This will release the flyer back to the campaign, and you will not be able to submit proof for it.")) return
+    
+    setForfeitingId(slotId)
+    const { error } = await supabase
+      .from("ad_slots")
+      .delete()
+      .eq("id", slotId)
+    
+    if (!error) {
+      setTakenJobs((prev) => prev.filter(job => job.id !== slotId))
+    } else {
+      alert("Failed to forfeit slot. Please try again.")
+    }
+    setForfeitingId(null)
+  }
 
   React.useEffect(() => {
     async function fetchTakenJobs() {
@@ -85,17 +119,30 @@ export default function ActiveSlotsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="text-right hidden sm:block">
+                    <div className="text-right hidden sm:block mr-2">
                       <div className="text-[10px] uppercase font-bold text-muted mb-0.5">Deadline</div>
-                      <div className="text-xs font-mono">
-                        {new Date(job.must_post_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="text-xs font-mono text-honey font-bold">
+                        {formatDeadline(job.must_post_by)}
                       </div>
                     </div>
-                    <Button size="sm" className="flex-1 sm:flex-none" asChild>
-                      <Link href={`/dashboard/broadcaster/submit/${job.id}`}>
-                        {job.status === 'claimed' ? 'Submit Proof' : 'View Status'}
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                      <Button size="sm" className="flex-grow sm:flex-grow-0" asChild>
+                        <Link href={`/dashboard/broadcaster/submit/${job.id}`}>
+                          {job.status === 'claimed' ? 'Submit Proof' : 'View Status'}
+                        </Link>
+                      </Button>
+                      {job.status === 'claimed' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-red-buzz border-red-buzz/10 hover:bg-red-buzz/5"
+                          onClick={() => handleForfeit(job.id)}
+                          disabled={forfeitingId === job.id}
+                        >
+                          {forfeitingId === job.id ? 'Releasing...' : 'Forfeit'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

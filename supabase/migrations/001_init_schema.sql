@@ -105,7 +105,7 @@ create table if not exists ledger (
 create or replace function sync_must_post_by()
 returns trigger as $$
 begin
-  new.must_post_by := new.claimed_at + interval '2 hours';
+  new.must_post_by := new.claimed_at + interval '24 hours';
   return new;
 end;
 $$ language plpgsql;
