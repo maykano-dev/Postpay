@@ -16,6 +16,23 @@ export async function POST(req: Request) {
 
     const supabase = await createClient()
 
+    // ── Check if user is authenticated ───────────────────────
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // ── Verify that the user owns this slot ──────────────────
+    const { data: slot } = await supabase
+      .from('ad_slots')
+      .select('broadcaster_id')
+      .eq('id', slotId)
+      .single()
+
+    if (!slot || slot.broadcaster_id !== user.id) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     // ── 1. Duplicate screenshot check ───────────────────────
     const { data: dupe } = await supabase
       .from('verifications')
@@ -50,26 +67,30 @@ export async function POST(req: Request) {
       runGemini(base64, mimeType, platform as AdPlatform),
     ])
 
-    // Extract results with safe fallbacks
-    const ela = elaResult.status === 'fulfilled'
-      ? elaResult.value
-      : { manipulation_score: 0, ela_verdict: 'clean' as const, region_count: 0, suspicious_pixel_percentage: 0 }
+    // Fail secure if core services are down/errored
+    if (elaResult.status === 'rejected') {
+      console.error('ELA Forensics Layer Failed:', elaResult.reason)
+      return Response.json(
+        { error: 'Forensics verification service temporarily offline. Please try again shortly.' },
+        { status: 503 }
+      )
+    }
 
+    if (geminiResult.status === 'rejected') {
+      console.error('Gemini AI Layer Failed:', geminiResult.reason)
+      return Response.json(
+        { error: 'AI verification service temporarily offline. Please try again shortly.' },
+        { status: 503 }
+      )
+    }
+
+    // Extract results
+    const ela = elaResult.value
     const metadata = metadataResult.status === 'fulfilled'
       ? metadataResult.value
       : { metadata_score: 0, metadata_verdict: 'clean' as const, software_signature: null, ai_generation_signals: [], manipulation_signals: [] }
 
-    const gemini: GeminiAuditResponse = geminiResult.status === 'fulfilled'
-      ? geminiResult.value
-      : {
-          is_valid: false,
-          views: 0,
-          fraud_score: 8,
-          rejection_reason: 'Analysis failed',
-          timestamp_visible: false,
-          platform_confirmed: false,
-          platform_detected: 'unknown',
-        }
+    const gemini = geminiResult.value
 
     // ── 4. Compute composite forensics score ─────────────────
     const forensics = computeForensicsScore({
@@ -186,14 +207,13 @@ async function runELA(base64: string): Promise<{
     })
 
     if (!res.ok) {
-      console.warn(`ELA function returned ${res.status}, falling back to clean verdict`)
-      return { manipulation_score: 0, ela_verdict: 'clean', region_count: 0, suspicious_pixel_percentage: 0 }
+      throw new Error(`ELA forensic analysis returned status ${res.status}`)
     }
 
     return res.json()
   } catch (err) {
-    console.warn(`Failed to connect to ELA function at ${elaUrl}, falling back to clean verdict`, err)
-    return { manipulation_score: 0, ela_verdict: 'clean', region_count: 0, suspicious_pixel_percentage: 0 }
+    console.error(`Failed to execute ELA forensic analysis at ${elaUrl}:`, err)
+    throw err
   }
 }
 

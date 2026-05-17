@@ -62,7 +62,7 @@ create table verifications (
   id                  uuid primary key default gen_random_uuid(),
   slot_id             uuid references ad_slots(id) on delete cascade,
   screenshot_url      text not null,             -- ImgBB hosted screenshot
-  screenshot_hash     text not null,             -- SHA-256 to detect duplicates
+  screenshot_hash     text unique not null,             -- SHA-256 to detect duplicates
   gemini_raw_response jsonb,                     -- Full AI response stored for audit
   views_extracted     integer,
   is_valid            boolean,
