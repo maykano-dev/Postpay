@@ -22,15 +22,49 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // ── Verify that the user owns this slot ──────────────────
+    // ── Verify that the user owns this slot and fetch details ──────────────────
     const { data: slot } = await supabase
       .from('ad_slots')
-      .select('broadcaster_id')
+      .select('broadcaster_id, claimed_at, status, platform')
       .eq('id', slotId)
       .single()
 
-    if (!slot || slot.broadcaster_id !== user.id) {
+    if (!slot) {
+      return Response.json({ error: 'Ad slot not found.' }, { status: 404 })
+    }
+
+    if (slot.broadcaster_id !== user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (slot.status === 'approved') {
+      return Response.json({ error: 'This ad slot has already been verified and paid out.' }, { status: 400 })
+    }
+
+    // ── Enforce 24-Hour Wait Lock (Prevents clock manipulation) ──────────────────
+    const claimedAt = new Date(slot.claimed_at)
+    const now = new Date()
+    const unlockTime = new Date(claimedAt.getTime() + 24 * 60 * 60 * 1000)
+
+    if (now < unlockTime) {
+      const remainingMs = unlockTime.getTime() - now.getTime()
+      const remainingHours = (remainingMs / (1000 * 60 * 60)).toFixed(1)
+      return Response.json(
+        { 
+          error: `Upload is locked. BuzzHive requires social media statuses to run for the full 24 hours. Please wait another ${remainingHours} hours.` 
+        }, 
+        { status: 400 }
+      )
+    }
+
+    // ── Enforce Platform Mismatch Validation ──────────────────
+    if (platform && slot.platform && platform !== slot.platform) {
+      return Response.json(
+        { 
+          error: `Platform mismatch. This ad slot was claimed for ${slot.platform.toUpperCase()}, but you selected ${platform.toUpperCase()}. Please submit proof for the correct platform.` 
+        }, 
+        { status: 400 }
+      )
     }
 
     // ── 1. Duplicate screenshot check ───────────────────────
