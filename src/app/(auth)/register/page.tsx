@@ -37,6 +37,7 @@ function RegisterForm() {
         data: {
           full_name: fullName,
           role,
+          momo_number: role === "broadcaster" ? momoNumber : null,
         }
       }
     })
@@ -48,25 +49,12 @@ function RegisterForm() {
     }
 
     if (data.user) {
-      // 2. Create profile entry
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          id: data.user.id,
-          full_name: fullName,
-          email,
-          momo_number: role === "broadcaster" ? momoNumber : null,
-          role,
-          balance: 0,
-          total_earned: 0,
-          trust_score: 100,
-        })
-
-      if (profileError) {
-        setError(profileError.message)
-        setLoading(false)
-      } else {
+      // If session exists, they are logged in; otherwise they need to confirm email
+      if (data.session) {
         router.push("/dashboard")
+      } else {
+        setError("Success! Please check your email to confirm your account.")
+        setLoading(false)
       }
     }
   }
@@ -81,7 +69,7 @@ function RegisterForm() {
             <div className="w-10 h-10 bg-honey rounded-xl flex items-center justify-center text-black">
               <Zap size={24} fill="currentColor" />
             </div>
-            <span className="syne text-2xl font-black">BuzzHive</span>
+            <span className="syne text-2xl font-black">PostPay</span>
           </Link>
           <h1 className="syne text-3xl font-bold mb-2">Create your account</h1>
           <p className="text-secondary font-light">Join the smartest advertising network in Ghana.</p>

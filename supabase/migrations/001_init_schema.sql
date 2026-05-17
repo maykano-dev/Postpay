@@ -47,7 +47,7 @@ create table ad_slots (
   broadcaster_id  uuid references profiles(id) on delete cascade,
   status          slot_status default 'claimed',
   claimed_at      timestamptz default now(),
-  must_post_by    timestamptz generated always as (claimed_at + interval '2 hours') stored,
+  must_post_by    timestamptz default (now() + interval '2 hours'),
   submitted_at    timestamptz,
   approved_at     timestamptz,
   views_verified  integer,                       -- Set by AI after verification
@@ -86,3 +86,16 @@ create table ledger (
   moolre_ref      text,                          -- Moolre transaction reference
   created_at      timestamptz default now()
 );
+
+-- TRIGGERS
+create or replace function sync_must_post_by()
+returns trigger as $$
+begin
+  new.must_post_by := new.claimed_at + interval '2 hours';
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger trg_sync_must_post_by
+before insert or update of claimed_at on ad_slots
+for each row execute function sync_must_post_by();

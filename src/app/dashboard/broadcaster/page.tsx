@@ -2,69 +2,84 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { TrendingUp, Users, Wallet, ArrowUpRight, Megaphone, CheckCircle2 } from "lucide-react"
+import { TrendingUp, Users, Wallet, ArrowUpRight, Megaphone, CheckCircle2, Sparkles } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
 import { Card, CardTitle, CardDescription } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { formatCurrency, cn } from "@/lib/utils"
 
 export default function BroadcasterDashboard() {
-  const { profile } = useUser()
+  const { profile, supabase } = useUser()
+  const [activeSlotsCount, setActiveSlotsCount] = React.useState(0)
+
+  React.useEffect(() => {
+    async function fetchStats() {
+      if (!profile?.id) return
+      const { count } = await supabase
+        .from("ad_slots")
+        .select("*", { count: 'exact', head: true })
+        .eq("broadcaster_id", profile.id)
+        .in('status', ['claimed', 'pending_verification'])
+      
+      setActiveSlotsCount(count || 0)
+    }
+
+    fetchStats()
+  }, [profile?.id, supabase])
 
   const stats = [
     { label: "Total Earned", value: formatCurrency(profile?.total_earned || 0), icon: Wallet, color: "text-green-buzz" },
-    { label: "Trust Score", value: profile?.trust_score + "%", icon: CheckCircle2, color: "text-honey" },
-    { label: "Active Slots", value: "0", icon: Megaphone, color: "text-blue-400" },
+    { label: "Trust Score", value: (profile?.trust_score || 100) + "%", icon: CheckCircle2, color: "text-honey" },
+    { label: "Active Slots", value: activeSlotsCount.toString(), icon: Megaphone, color: "text-blue-400" },
   ]
 
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-2">
-        <h1 className="syne text-4xl font-bold">Welcome, {profile?.full_name?.split(' ')[0]} 🐝</h1>
-        <p className="text-secondary font-light">Here's how your earnings are buzzing today.</p>
+        <h1 className="syne text-4xl font-bold flex items-center gap-3">Welcome, {profile?.full_name?.split(' ')[0]} <Sparkles className="text-honey" size={32} /></h1>
+        <p className="text-secondary font-light">Here's how your earnings are growing today.</p>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-6">
         {stats.map((stat, i) => (
-          <Card key={i} className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className={cn("p-3 rounded-xl bg-white/5", stat.color)}>
-                <stat.icon size={24} />
+          <Link 
+            key={i}
+            href={stat.label === "Active Slots" ? "/dashboard/broadcaster/slots" : "#"}
+            className="block"
+          >
+            <Card 
+              className={cn(
+                "p-6 transition-all h-full",
+                stat.label === "Active Slots" && "hover:border-honey/30 hover:bg-honey/[0.02]"
+              )}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className={cn("p-3 rounded-xl bg-white/5", stat.color)}>
+                  <stat.icon size={24} />
+                </div>
+                <Badge className="bg-white/5 text-muted border-none">Live</Badge>
               </div>
-              <Badge className="bg-white/5 text-muted border-none">Live</Badge>
-            </div>
-            <div className="syne text-3xl font-black mb-1">{stat.value}</div>
-            <div className="text-xs font-bold uppercase tracking-widest text-muted">{stat.label}</div>
-          </Card>
+              <div className="syne text-3xl font-black mb-1">{stat.value}</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-muted">{stat.label}</div>
+            </Card>
+          </Link>
         ))}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 p-8 border-honey/10">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <CardTitle>Recommended for you</CardTitle>
-              <CardDescription>Campaigns matching your audience.</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard/broadcaster/campaigns" className="flex items-center gap-2">
-                Browse all <ArrowUpRight size={16} />
-              </Link>
-            </Button>
+        <Card className="lg:col-span-2 p-8 border-honey/10 flex flex-col justify-center items-center text-center space-y-4 min-h-[300px]">
+          <div className="w-16 h-16 bg-honey/10 text-honey rounded-full flex items-center justify-center">
+            <Megaphone size={32} />
           </div>
-
-          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 border-2 border-dashed border-white/5 rounded-3xl">
-            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-muted">
-              <Megaphone size={32} />
-            </div>
-            <div>
-              <div className="font-bold">No active campaigns joined</div>
-              <p className="text-sm text-muted">Start posting flyers to earn GHS.</p>
-            </div>
-            <Button size="sm" asChild>
-              <Link href="/dashboard/broadcaster/campaigns">Find Campaigns</Link>
-            </Button>
+          <div>
+            <h2 className="font-bold text-xl mb-2">Find Your Next Gig</h2>
+            <p className="text-sm text-secondary max-w-md mx-auto">
+              Browse available campaigns, download flyers, post them to your status, and earn money for every verified view.
+            </p>
           </div>
+          <Button className="mt-4" asChild>
+            <Link href="/dashboard/broadcaster/campaigns">Browse Campaigns</Link>
+          </Button>
         </Card>
 
         <Card className="p-8 border-white/5">

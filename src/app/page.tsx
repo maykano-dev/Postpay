@@ -23,14 +23,23 @@ import { Button } from "@/components/ui/Button"
 import { Card, CardTitle, CardDescription } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { cn, formatCurrency } from "@/lib/utils"
+import { PLATFORM_LABELS, PLATFORM_BUSINESS_CPM, PLATFORM_BROADCASTER_CPM, type AdPlatform } from "@/types"
+import { PLATFORM_ICONS } from "@/lib/icons"
+import { useUser } from "@/hooks/useUser"
 
 export default function LandingPage() {
+  const { profile } = useUser()
   const [budget, setBudget] = React.useState(2500)
   const [activeTab, setActiveTab] = React.useState<"biz" | "earn">("biz")
+  const [calcPlatform, setCalcPlatform] = React.useState<AdPlatform>("whatsapp")
 
-  const views = (budget / 250) * 1000
+  const ALL_PLATFORMS: AdPlatform[] = ["whatsapp", "instagram", "snapchat", "tiktok", "facebook"]
+
+  // Per-platform calculations
+  const views = (budget / PLATFORM_BUSINESS_CPM[calcPlatform]) * 1000
   const flyers = budget / 10
   const ratio = Math.round(views / flyers)
+  const broadcasterEarnings = (views / 1000) * PLATFORM_BROADCASTER_CPM[calcPlatform]
 
   return (
     <div className="min-h-screen bg-black overflow-x-hidden selection:bg-honey selection:text-black">
@@ -57,19 +66,32 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-lg md:text-xl text-secondary max-w-2xl mx-auto mb-12 font-light">
-              BuzzHive puts your brand on thousands of real WhatsApp Statuses across Ghana. Reach people through the contacts they actually trust.
+              PostPay puts your brand on thousands of real status updates across WhatsApp, Instagram, Snapchat, and more. Reach people through the accounts they actually trust.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-              <Button size="lg" asChild>
-                <Link href="/register">
-                  Advertise My Business
-                  <ArrowRight size={20} className="ml-2" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/register?role=broadcaster">Earn by Posting</Link>
-              </Button>
+              {profile ? (
+                <>
+                  <Button size="lg" asChild>
+                    <Link href={`/dashboard/${profile.role}`}>
+                      Go to Dashboard
+                      <ArrowRight size={20} className="ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" asChild>
+                    <Link href="/register">
+                      Advertise My Business
+                      <ArrowRight size={20} className="ml-2" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/register?role=broadcaster">Earn by Posting</Link>
+                  </Button>
+                </>
+              )}
             </div>
 
             <div className="flex flex-wrap justify-center gap-8 md:gap-16 py-12 border-y border-border-dim">
@@ -97,7 +119,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <Badge variant="honey" className="mb-4">The Cost Reality</Badge>
             <h2 className="syne text-4xl md:text-6xl font-bold mb-6">You're overpaying for reach.</h2>
-            <p className="text-secondary max-w-lg mx-auto">Traditional ads are expensive and unmeasurable. BuzzHive is precise, local, and built for your budget.</p>
+            <p className="text-secondary max-w-lg mx-auto">Traditional ads are expensive and unmeasurable. PostPay is precise, local, and built for your budget.</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
@@ -130,7 +152,7 @@ export default function LandingPage() {
 
             <Card className="p-8 md:p-12 border-honey/20 bg-honey/[0.02]">
               <div className="flex justify-between items-center mb-8">
-                <Badge variant="honey">BuzzHive Way</Badge>
+                <Badge variant="honey">PostPay Way</Badge>
                 <CheckCircle className="text-green-buzz" />
               </div>
               <CardTitle className="text-3xl mb-8">Modern Status Ads</CardTitle>
@@ -179,6 +201,47 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Platform Section */}
+        <section className="py-24 bg-surface/30" id="platforms">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <Badge variant="honey" className="mb-4">5 Platforms</Badge>
+              <h2 className="syne text-4xl md:text-6xl font-bold mb-6">
+                One campaign.<br />Every platform.
+              </h2>
+              <p className="text-secondary max-w-lg mx-auto">
+                Your flyer reaches real Ghanaians wherever they scroll. 
+                Broadcasters post on the platform their audience trusts.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              {ALL_PLATFORMS.map((platform) => (
+                <Card key={platform} className="p-6 text-center border-white/5 hover:border-honey/30 transition-all">
+                  <div className="text-4xl mb-4">{PLATFORM_ICONS[platform]}</div>
+                  <div className="font-bold text-sm mb-1">{PLATFORM_LABELS[platform]}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted mb-4">
+                    Business rate
+                  </div>
+                  <div className="syne text-xl font-black text-honey">
+                    GHS {PLATFORM_BUSINESS_CPM[platform]}
+                  </div>
+                  <div className="text-[9px] text-muted">per 1,000 views</div>
+                  <div className="mt-3 pt-3 border-t border-white/5">
+                    <div className="text-[10px] text-secondary">
+                      Broadcasters earn <span className="text-green-buzz font-bold">GHS {PLATFORM_BROADCASTER_CPM[platform]}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <div className="mt-12 text-center text-sm text-muted flex items-center justify-center gap-2">
+              <Zap size={16} className="text-honey" /> WhatsApp has the highest engagement rate in Ghana — recommended for all campaigns.
+            </div>
+          </div>
+        </section>
+
         {/* Calculator */}
         <section className="py-24 container mx-auto px-6">
           <Card className="max-w-4xl mx-auto p-8 md:p-16 border-honey/10">
@@ -188,6 +251,24 @@ export default function LandingPage() {
             </div>
 
             <div className="mb-12">
+              {/* Platform tabs */}
+              <div className="flex flex-wrap gap-2 mb-8 justify-center">
+                {ALL_PLATFORMS.map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setCalcPlatform(p)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                      calcPlatform === p
+                        ? "bg-honey text-black"
+                        : "bg-white/5 text-secondary hover:bg-white/10"
+                    )}
+                  >
+                    {PLATFORM_ICONS[p]} {PLATFORM_LABELS[p]}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex justify-between items-center mb-6">
                 <span className="font-bold text-lg">Your Budget (GHS)</span>
                 <span className="syne text-3xl font-black text-honey">{formatCurrency(budget)}</span>
@@ -203,18 +284,22 @@ export default function LandingPage() {
               />
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-6">
-              <div className="bg-black/50 p-8 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-3xl font-black text-honey mb-2">{Math.round(views).toLocaleString()}</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-muted">BuzzHive Views</span>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
+                <span className="block syne text-2xl font-black text-honey mb-2">{Math.round(views).toLocaleString()}</span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">PostPay Views</span>
               </div>
-              <div className="bg-black/50 p-8 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-3xl font-black text-red-buzz mb-2">{Math.round(flyers).toLocaleString()}</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-muted">Flyers Printed</span>
+              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
+                <span className="block syne text-2xl font-black text-red-buzz mb-2">{Math.round(flyers).toLocaleString()}</span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">Flyers Printed</span>
               </div>
-              <div className="bg-black/50 p-8 rounded-3xl border border-white/5 text-center">
-                <span className="block syne text-3xl font-black text-green-buzz mb-2">{ratio}x</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-muted">More Reach</span>
+              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
+                <span className="block syne text-2xl font-black text-green-buzz mb-2">{ratio}x</span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">More Reach</span>
+              </div>
+              <div className="bg-black/50 p-6 rounded-3xl border border-white/5 text-center">
+                <span className="block syne text-2xl font-black text-green-buzz mb-2">GHS {Math.round(broadcasterEarnings).toLocaleString()}</span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-muted">Worker Earnings</span>
               </div>
             </div>
           </Card>
@@ -229,7 +314,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 bg-honey rounded-lg flex items-center justify-center text-black">
                   <Zap size={20} fill="currentColor" />
                 </div>
-                <span className="syne text-xl font-bold tracking-tight">BuzzHive</span>
+                <span className="syne text-xl font-bold tracking-tight">PostPay</span>
               </Link>
               <p className="text-secondary font-light">The smarter, faster, and more trusted way to advertise across Ghana via WhatsApp Status.</p>
             </div>
@@ -254,9 +339,9 @@ export default function LandingPage() {
           </div>
           
           <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-border-dim gap-4">
-            <span className="text-xs text-muted">© 2025 BuzzHive. All rights reserved.</span>
+            <span className="text-xs text-muted">© 2025 PostPay. All rights reserved.</span>
             <span className="text-xs text-muted flex items-center gap-1.5">
-              Built with <Heart size={12} className="fill-red-buzz text-red-buzz" /> in Ghana 🇬🇭
+              Built with <Heart size={12} className="fill-red-buzz text-red-buzz" /> in Ghana
             </span>
           </div>
         </div>

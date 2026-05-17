@@ -19,8 +19,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-2">
-        <h1 className="syne text-4xl font-bold">Admin Command Center 🛡️</h1>
-        <p className="text-secondary font-light">Monitor the health and integrity of the BuzzHive network.</p>
+        <h1 className="syne text-4xl font-bold flex items-center gap-3">Admin Command Center <ShieldCheck className="text-honey" size={32} /></h1>
+        <p className="text-secondary font-light">Monitor the health and integrity of the PostPay network.</p>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-6">

@@ -18,18 +18,22 @@ import { useUser } from "@/hooks/useUser"
 import { Button } from "@/components/ui/Button"
 import { Card, CardTitle, CardDescription } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
-import { formatCurrency } from "@/lib/utils"
-import { type Campaign, type AdSlot } from "@/types"
+import { formatCurrency, cn } from "@/lib/utils"
+import { type Campaign, type AdSlot, type AdPlatform, PLATFORM_LABELS, PLATFORM_BROADCASTER_CPM } from "@/types"
+import { PLATFORM_ICONS } from "@/lib/icons"
+import { useToast } from "@/hooks/useToast"
 
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { profile, supabase } = useUser()
+  const { toast } = useToast()
   
   const [campaign, setCampaign] = React.useState<Campaign | null>(null)
   const [slot, setSlot] = React.useState<AdSlot | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [claiming, setClaiming] = React.useState(false)
+  const [selectedPlatform, setSelectedPlatform] = React.useState<AdPlatform>("whatsapp")
 
   React.useEffect(() => {
     async function fetchData() {
@@ -40,8 +44,15 @@ export default function CampaignDetailPage() {
         supabase.from("ad_slots").select("*").eq("campaign_id", params.id).eq("broadcaster_id", profile.id).maybeSingle()
       ])
 
-      setCampaign(campaignRes.data as Campaign)
+      const campaignData = campaignRes.data as Campaign
+      setCampaign(campaignData)
       setSlot(slotRes.data as AdSlot)
+      
+      // Default to first available platform
+      if (campaignData?.platforms?.length > 0) {
+        setSelectedPlatform(campaignData.platforms[0])
+      }
+      
       setLoading(false)
     }
     fetchData()
@@ -54,13 +65,23 @@ export default function CampaignDetailPage() {
     const { data, error } = await supabase.from("ad_slots").insert({
       campaign_id: campaign.id,
       broadcaster_id: profile.id,
+      platform: selectedPlatform,  // NEW
       status: "claimed"
     }).select().single()
 
     if (error) {
-      alert(error.message)
+      toast({
+        title: "Claim Failed",
+        message: error.message,
+        type: "error"
+      })
       setClaiming(false)
     } else {
+      toast({
+        title: "Slot Claimed",
+        message: "You have 2 hours to post and submit proof.",
+        type: "success"
+      })
       setSlot(data as AdSlot)
       setClaiming(false)
     }
@@ -105,13 +126,59 @@ export default function CampaignDetailPage() {
           <div className="grid grid-cols-2 gap-4">
             <Card className="p-4 bg-white/5">
               <div className="text-[10px] uppercase font-bold text-muted tracking-widest mb-1">You Earn</div>
-              <div className="text-xl font-black text-green-buzz">{formatCurrency(campaign.broadcaster_cpm)} <span className="text-[10px] font-normal text-muted">/ 1k views</span></div>
+              <div className="text-xl font-black text-green-buzz">
+                {formatCurrency(campaign.platform_broadcaster_cpm?.[selectedPlatform] || campaign.broadcaster_cpm)} 
+                <span className="text-[10px] font-normal text-muted">/ 1k views</span>
+              </div>
             </Card>
             <Card className="p-4 bg-white/5">
               <div className="text-[10px] uppercase font-bold text-muted tracking-widest mb-1">Available Views</div>
               <div className="text-xl font-black">{(campaign.target_views - campaign.views_delivered).toLocaleString()}</div>
             </Card>
           </div>
+
+          {/* Platform Selector */}
+          {!slot && (
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted block">
+                Choose Your Platform
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {(campaign.platforms || ["whatsapp"]).map((platform: AdPlatform) => {
+                  const isSelected = selectedPlatform === platform
+                  const rate = campaign.platform_broadcaster_cpm?.[platform] || PLATFORM_BROADCASTER_CPM[platform]
+                  return (
+                    <button
+                      key={platform}
+                      type="button"
+                      onClick={() => setSelectedPlatform(platform)}
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        isSelected
+                          ? "border-green-buzz/40 bg-green-buzz/10"
+                          : "border-white/5 hover:border-white/10"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{PLATFORM_ICONS[platform]}</span>
+                        <div className="text-left">
+                          <div className={cn("font-bold text-sm", isSelected ? "text-green-buzz" : "text-white")}>
+                            {PLATFORM_LABELS[platform]}
+                          </div>
+                          <div className="text-[10px] text-muted uppercase tracking-wider">
+                            Earn GHS {rate} per 1,000 views
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <span className="text-[10px] font-black text-green-buzz uppercase tracking-wider">Selected</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {!slot ? (
             <Card className="p-8 border-honey/20 bg-honey/[0.02] space-y-6">

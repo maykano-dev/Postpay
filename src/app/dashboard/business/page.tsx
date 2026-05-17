@@ -21,7 +21,7 @@ export default function BusinessDashboard() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="syne text-4xl font-bold">Business Portal 📈</h1>
+          <h1 className="syne text-4xl font-bold flex items-center gap-3">Business Portal <TrendingUp className="text-honey" size={32} /></h1>
           <p className="text-secondary font-light">Monitor your brand's reach across Ghana.</p>
         </div>
         <Button asChild>

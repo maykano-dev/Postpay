@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         amount,
         currency: "GHS",
         phone: profile.momo_number,
-        description: `BuzzHive Earnings Withdrawal`,
+        description: `PostPay Earnings Withdrawal`,
         metadata: {
           broadcaster_id: user.id,
           type: "broadcaster_withdraw",

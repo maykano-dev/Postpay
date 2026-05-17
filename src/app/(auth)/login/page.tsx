@@ -45,7 +45,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-honey rounded-xl flex items-center justify-center text-black">
               <Zap size={24} fill="currentColor" />
             </div>
-            <span className="syne text-2xl font-black">BuzzHive</span>
+            <span className="syne text-2xl font-black">PostPay</span>
           </Link>
           <h1 className="syne text-3xl font-bold mb-2">Welcome back</h1>
           <p className="text-secondary font-light">Sync your hive and manage your campaigns.</p>

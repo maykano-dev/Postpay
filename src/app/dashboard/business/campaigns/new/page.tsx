@@ -8,11 +8,15 @@ import { useUser } from "@/hooks/useUser"
 import { Button } from "@/components/ui/Button"
 import { Card, CardTitle, CardDescription } from "@/components/ui/Card"
 import { FlyerUpload } from "@/components/business/FlyerUpload"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
+import { PLATFORM_LABELS, PLATFORM_BUSINESS_CPM, PLATFORM_BROADCASTER_CPM, type AdPlatform } from "@/types"
+import { PLATFORM_ICONS } from "@/lib/icons"
+import { useToast } from "@/hooks/useToast"
 
 export default function NewCampaignPage() {
   const router = useRouter()
   const { profile, supabase } = useUser()
+  const { toast } = useToast()
   
   const [loading, setLoading] = React.useState(false)
   const [paymentPending, setPaymentPending] = React.useState(false)
@@ -23,17 +27,42 @@ export default function NewCampaignPage() {
     category: "general",
     targetViews: 1000,
     flyerUrl: "",
-    flyerThumbUrl: ""
+    flyerThumbUrl: "",
+    selectedPlatforms: ["whatsapp"] as AdPlatform[], // NEW
   })
 
-  // Calculations
-  const cpmRate = 250 // GHS per 1000 views
-  const totalCost = (formData.targetViews / 1000) * cpmRate
+  const ALL_PLATFORMS: AdPlatform[] = ["whatsapp", "instagram", "snapchat", "tiktok", "facebook"]
+
+  // Total cost = sum of (targetViews / 1000 * CPM) for each selected platform
+  const totalCost = formData.selectedPlatforms.reduce((sum, platform) => {
+    return sum + (formData.targetViews / 1000) * PLATFORM_BUSINESS_CPM[platform]
+  }, 0)
+
+  const togglePlatform = (platform: AdPlatform) => {
+    setFormData(prev => {
+      const has = prev.selectedPlatforms.includes(platform)
+      // Must keep at least one platform selected
+      if (has && prev.selectedPlatforms.length === 1) return prev
+      return {
+        ...prev,
+        selectedPlatforms: has
+          ? prev.selectedPlatforms.filter(p => p !== platform)
+          : [...prev.selectedPlatforms, platform],
+      }
+    })
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile) return
-    if (!formData.flyerUrl) return alert("Please upload a flyer")
+    if (!formData.flyerUrl) {
+      toast({
+        title: "Flyer Required",
+        message: "Please upload a flyer for your campaign.",
+        type: "error"
+      })
+      return
+    }
     
     setLoading(true)
 
@@ -42,15 +71,28 @@ export default function NewCampaignPage() {
       title: formData.title,
       description: formData.description,
       category: formData.category,
+      platforms: formData.selectedPlatforms,
+      platform_cpm_rates: Object.fromEntries(
+        formData.selectedPlatforms.map(p => [p, PLATFORM_BUSINESS_CPM[p]])
+      ),
+      platform_broadcaster_cpm: Object.fromEntries(
+        formData.selectedPlatforms.map(p => [p, PLATFORM_BROADCASTER_CPM[p]])
+      ),
       target_views: formData.targetViews,
       budget_ghs: totalCost,
       flyer_url: formData.flyerUrl,
       flyer_thumb_url: formData.flyerThumbUrl,
+      cpm_rate: PLATFORM_BUSINESS_CPM["whatsapp"],    // Legacy fallback
+      broadcaster_cpm: PLATFORM_BROADCASTER_CPM["whatsapp"], // Legacy fallback
       status: "draft"
     }).select().single()
 
     if (createError) {
-      alert(createError.message)
+      toast({
+        title: "Campaign Error",
+        message: createError.message,
+        type: "error"
+      })
       setLoading(false)
       return
     }
@@ -70,12 +112,25 @@ export default function NewCampaignPage() {
       const data = await res.json()
       if (data.status === "pending") {
         setPaymentPending(true)
+        toast({
+          title: "Payment Initiated",
+          message: "Please check your phone for the MoMo prompt.",
+          type: "info"
+        })
       } else {
-        alert("Payment initiation failed. Please try again.")
+        toast({
+          title: "Payment Failed",
+          message: "Payment initiation failed. Please try again.",
+          type: "error"
+        })
       }
     } catch (err) {
       console.error(err)
-      alert("Checkout error. Please contact support.")
+      toast({
+        title: "Checkout Error",
+        message: "An error occurred during checkout. Please contact support.",
+        type: "error"
+      })
     } finally {
       setLoading(false)
     }
@@ -109,7 +164,7 @@ export default function NewCampaignPage() {
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
                 className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 px-6 focus:border-honey outline-none transition-all"
-                placeholder="E.g. Summer Pizza Blast 🍕"
+                placeholder="E.g. Summer Pizza Blast"
               />
             </div>
 
@@ -158,6 +213,60 @@ export default function NewCampaignPage() {
             </div>
           </Card>
 
+          {/* Platform Selector */}
+          <Card className="p-8 space-y-6">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted block mb-2">
+                Advertising Platforms
+              </label>
+              <p className="text-xs text-secondary font-light">
+                Select which platforms broadcasters can post on. Each platform has a different rate.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {ALL_PLATFORMS.map(platform => {
+                const selected = formData.selectedPlatforms.includes(platform)
+                return (
+                  <button
+                    key={platform}
+                    type="button"
+                    onClick={() => togglePlatform(platform)}
+                    className={cn(
+                      "flex items-center justify-between p-4 rounded-2xl border transition-all text-left",
+                      selected
+                        ? "border-honey/40 bg-honey/10"
+                        : "border-white/5 bg-black/20 hover:border-white/10"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{PLATFORM_ICONS[platform]}</span>
+                      <div>
+                        <div className={cn("font-bold text-sm", selected ? "text-honey" : "text-white")}>
+                          {PLATFORM_LABELS[platform]}
+                        </div>
+                        <div className="text-[10px] text-muted uppercase tracking-wider font-bold">
+                          GHS {PLATFORM_BUSINESS_CPM[platform]} per 1,000 views
+                        </div>
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                      selected ? "border-honey bg-honey" : "border-white/20"
+                    )}>
+                      {selected && <span className="text-black text-xs font-black">✓</span>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="p-4 bg-black/40 border border-white/5 rounded-xl text-xs text-secondary">
+              Multi-platform campaigns get more reach but cost more. 
+              Broadcasters choose which platform to post on when they claim a slot.
+            </div>
+          </Card>
+
           <Card className="p-8">
             <FlyerUpload 
               value={formData.flyerUrl}
@@ -185,12 +294,12 @@ export default function NewCampaignPage() {
               </div>
 
               <div className="flex justify-between items-center text-sm pt-4 border-t border-white/5">
-                <span className="text-secondary flex items-center gap-2"><Eye size={14} /> Views Requested</span>
+                <span className="text-secondary flex items-center gap-2"><Eye size={14} /> Views (per platform)</span>
                 <span className="font-bold">{formData.targetViews.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-secondary flex items-center gap-2"><Target size={14} /> Rate (CPM)</span>
-                <span className="font-bold">{formatCurrency(cpmRate)}</span>
+                <span className="text-secondary flex items-center gap-2"><Target size={14} /> Selected Platforms</span>
+                <span className="font-bold">{formData.selectedPlatforms.length}</span>
               </div>
               <div className="pt-4 border-t border-white/5 flex justify-between items-center">
                 <span className="font-bold">Total Budget</span>

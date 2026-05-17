@@ -32,7 +32,7 @@ export default function BroadcasterCampaignsPage() {
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-2">
-        <h1 className="syne text-4xl font-bold">Earn Rewards 💸</h1>
+        <h1 className="syne text-4xl font-bold flex items-center gap-3">Earn Rewards <Wallet className="text-honey" size={32} /></h1>
         <p className="text-secondary font-light">Join campaigns and earn for every status view you get.</p>
       </div>
 

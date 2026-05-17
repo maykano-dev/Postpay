@@ -20,7 +20,7 @@ export async function POST(req: Request) {
         amount,
         currency: "GHS",
         phone: momoNumber,
-        description: `BuzzHive Campaign Funding`,
+        description: `PostPay Campaign Funding`,
         metadata: {
           campaign_id: campaignId,
           business_id: user.id,

@@ -24,6 +24,9 @@
 
   --background: var(--black);
   --foreground: var(--white);
+
+  --font-syne: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-jakarta: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 @theme inline {
@@ -45,8 +48,8 @@
   --color-green-buzz: var(--green);
   --color-green-dim: var(--green-dim);
 
-  --font-syne: "Syne", sans-serif;
-  --font-jakarta: "Plus Jakarta Sans", sans-serif;
+  --font-syne: var(--font-syne);
+  --font-jakarta: var(--font-jakarta);
 }
 
 body {
