@@ -1,8 +1,31 @@
--- USERS / PROFILES
-create type user_role as enum ('broadcaster', 'business', 'admin');
-create type account_status as enum ('active', 'suspended', 'pending_verification');
+-- Enforce safe conditional creation for custom enum types
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'user_role') then
+    create type user_role as enum ('broadcaster', 'business', 'admin');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'account_status') then
+    create type account_status as enum ('active', 'suspended', 'pending_verification');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'campaign_status') then
+    create type campaign_status as enum ('draft', 'active', 'paused', 'completed', 'cancelled');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'campaign_category') then
+    create type campaign_category as enum ('campus', 'general', 'food', 'fashion', 'tech', 'events', 'services');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'slot_status') then
+    create type slot_status as enum ('claimed', 'posted', 'submitted', 'approved', 'rejected', 'expired');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'verification_status') then
+    create type verification_status as enum ('pending', 'approved', 'rejected', 'flagged');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'ledger_type') then
+    create type ledger_type as enum ('campaign_topup', 'campaign_spend', 'broadcaster_earn', 'broadcaster_withdraw', 'platform_fee', 'refund');
+  end if;
+end$$;
 
-create table profiles (
+-- USERS / PROFILES
+create table if not exists profiles (
   id              uuid primary key references auth.users on delete cascade,
   full_name       text not null,
   email           text unique not null,
@@ -16,10 +39,7 @@ create table profiles (
 );
 
 -- CAMPAIGNS
-create type campaign_status as enum ('draft', 'active', 'paused', 'completed', 'cancelled');
-create type campaign_category as enum ('campus', 'general', 'food', 'fashion', 'tech', 'events', 'services');
-
-create table campaigns (
+create table if not exists campaigns (
   id              uuid primary key default gen_random_uuid(),
   business_id     uuid references profiles(id) on delete cascade,
   title           text not null,
@@ -39,9 +59,7 @@ create table campaigns (
 );
 
 -- AD SLOTS (claimed by broadcasters)
-create type slot_status as enum ('claimed', 'posted', 'submitted', 'approved', 'rejected', 'expired');
-
-create table ad_slots (
+create table if not exists ad_slots (
   id              uuid primary key default gen_random_uuid(),
   campaign_id     uuid references campaigns(id) on delete cascade,
   broadcaster_id  uuid references profiles(id) on delete cascade,
@@ -56,13 +74,11 @@ create table ad_slots (
 );
 
 -- VERIFICATIONS (AI audit log)
-create type verification_status as enum ('pending', 'approved', 'rejected', 'flagged');
-
-create table verifications (
+create table if not exists verifications (
   id                  uuid primary key default gen_random_uuid(),
   slot_id             uuid references ad_slots(id) on delete cascade,
   screenshot_url      text not null,             -- ImgBB hosted screenshot
-  screenshot_hash     text unique not null,             -- SHA-256 to detect duplicates
+  screenshot_hash     text unique not null,      -- SHA-256 to detect duplicates
   gemini_raw_response jsonb,                     -- Full AI response stored for audit
   views_extracted     integer,
   is_valid            boolean,
@@ -73,9 +89,7 @@ create table verifications (
 );
 
 -- LEDGER (immutable financial record)
-create type ledger_type as enum ('campaign_topup', 'campaign_spend', 'broadcaster_earn', 'broadcaster_withdraw', 'platform_fee', 'refund');
-
-create table ledger (
+create table if not exists ledger (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid references profiles(id),
   slot_id         uuid references ad_slots(id),
@@ -96,6 +110,7 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists trg_sync_must_post_by on ad_slots;
 create trigger trg_sync_must_post_by
 before insert or update of claimed_at on ad_slots
 for each row execute function sync_must_post_by();
