@@ -13,6 +13,24 @@ export default function ActiveSlotsPage() {
   const [takenJobs, setTakenJobs] = React.useState<any[]>([])
   const [loadingJobs, setLoadingJobs] = React.useState(true)
   const [forfeitingId, setForfeitingId] = React.useState<string | null>(null)
+  const [nowTime, setNowTime] = React.useState(Date.now())
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTime(Date.now())
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const getRemainingTimeStr = (claimedAtStr: string) => {
+    const claimedAt = new Date(claimedAtStr).getTime()
+    const unlockTime = claimedAt + 24 * 60 * 60 * 1000
+    const diff = unlockTime - nowTime
+    if (diff <= 0) return ""
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    return `${hours}h ${minutes}m`
+  }
 
   const formatDeadline = (dateStr: string) => {
     const d = new Date(dateStr)
@@ -126,11 +144,17 @@ export default function ActiveSlotsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-1 sm:flex-none">
-                      <Button size="sm" className="flex-grow sm:flex-grow-0" asChild>
-                        <Link href={`/dashboard/broadcaster/submit/${job.id}`}>
-                          {job.status === 'claimed' ? 'Submit Proof' : 'View Status'}
-                        </Link>
-                      </Button>
+                      {job.status === 'claimed' && (nowTime < new Date(job.claimed_at).getTime() + 24 * 60 * 60 * 1000) ? (
+                        <Button size="sm" disabled className="flex-grow sm:flex-grow-0 bg-white/5 border border-white/5 text-muted cursor-not-allowed select-none flex items-center gap-1.5">
+                          🔒 Unlocks in {getRemainingTimeStr(job.claimed_at)}
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="flex-grow sm:flex-grow-0" asChild>
+                          <Link href={`/dashboard/broadcaster/submit/${job.id}`}>
+                            {job.status === 'claimed' ? 'Submit Proof' : 'View Status'}
+                          </Link>
+                        </Button>
+                      )}
                       {job.status === 'claimed' && (
                         <Button 
                           size="sm" 

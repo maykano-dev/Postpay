@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Cpu, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Sparkles, AlertOctagon, HelpCircle, Lock, Unlock, Smartphone } from "lucide-react"
+import { ArrowLeft, Cpu, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Sparkles, AlertOctagon, HelpCircle } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -77,8 +77,9 @@ export default function SubmitScreenshotPage() {
   
   const [screenshotUrl, setScreenshotUrl] = React.useState("")
   const [screenshotHash, setScreenshotHash] = React.useState("")
-  const [platform, setPlatform] = React.useState<AdPlatform | null>(null)
-  const [timeLeftMs, setTimeLeftMs] = React.useState<number | null>(null)
+  const [selectedPlatform, setSelectedPlatform] = React.useState<AdPlatform | null>(null)
+  const [timeRemaining, setTimeRemaining] = React.useState<number>(0)
+  
   const [result, setResult] = React.useState<{
     status: 'approved' | 'rejected' | 'flagged',
     views: number,
@@ -87,18 +88,18 @@ export default function SubmitScreenshotPage() {
     error?: string,
     positive_signals?: string[],
     reasons?: string[],
+    platform_confirmed?: boolean,
     layer_scores?: {
       ela: number,
       metadata: number,
       gemini: number
     },
-    final_score?: number,
-    platform_confirmed?: boolean
+    final_score?: number
   } | null>(null)
 
+  // ── Fetch Slot Data & Platform Setup ──
   React.useEffect(() => {
     async function fetchData() {
-      // 1. Get slot and campaign data
       const { data: slotData } = await supabase
         .from("ad_slots")
         .select("*, campaign:campaign_id(*)")
@@ -108,55 +109,45 @@ export default function SubmitScreenshotPage() {
       if (slotData) {
         setSlot(slotData as any)
         setCampaign(slotData.campaign as Campaign)
-        
-        // 2. Fetch server verified time to prevent local clock manipulation
-        let serverTime = new Date()
-        try {
-          const timeRes = await fetch("/api/time")
-          if (timeRes.ok) {
-            const timeData = await timeRes.json()
-            serverTime = new Date(timeData.serverTime)
-          }
-        } catch (err) {
-          console.error("Failed to sync server time, falling back to local time:", err)
-        }
-
-        // 3. Enforce 24-hour verification lock
-        const claimedAt = new Date(slotData.claimed_at)
-        const unlockTime = new Date(claimedAt.getTime() + 24 * 60 * 60 * 1000)
-
-        if (serverTime < unlockTime) {
-          const diff = unlockTime.getTime() - serverTime.getTime()
-          setTimeLeftMs(diff > 0 ? diff : 0)
-        } else {
-          setTimeLeftMs(0)
-        }
       }
       setLoading(false)
     }
     fetchData()
   }, [params.id, supabase])
 
-  // Live countdown ticker
+  // ── 24-Hour Locked Countdown Timer ──
   React.useEffect(() => {
-    if (timeLeftMs === null || timeLeftMs <= 0) return
+    if (!slot || slot.status !== 'claimed') return
 
-    const interval = setInterval(() => {
-      setTimeLeftMs((prev) => {
-        if (prev === null || prev <= 1000) {
-          clearInterval(interval)
-          return 0
-        }
-        return prev - 1000
-      })
-    }, 1000)
+    const calculateRemaining = () => {
+      const claimedAt = new Date(slot.claimed_at).getTime()
+      const unlockTime = claimedAt + 24 * 60 * 60 * 1000
+      const diff = unlockTime - Date.now()
+      setTimeRemaining(diff > 0 ? diff : 0)
+    }
 
+    calculateRemaining()
+    const interval = setInterval(calculateRemaining, 1000)
     return () => clearInterval(interval)
-  }, [timeLeftMs])
+  }, [slot])
+
+  const formatTimeRemaining = (ms: number) => {
+    const totalSecs = Math.floor(ms / 1000)
+    const hours = Math.floor(totalSecs / 3600)
+    const minutes = Math.floor((totalSecs % 3600) / 60)
+    const seconds = totalSecs % 60
+    
+    return {
+      hours: String(hours).padStart(2, "0"),
+      minutes: String(minutes).padStart(2, "0"),
+      seconds: String(seconds).padStart(2, "0")
+    }
+  }
 
   const handleVerify = async () => {
-    if (!screenshotUrl || !platform) return
+    if (!screenshotUrl || !selectedPlatform) return
     setVerifying(true)
+    setResult(null)
 
     try {
       const res = await fetch("/api/verify-screenshot", {
@@ -166,19 +157,33 @@ export default function SubmitScreenshotPage() {
           slotId: slot?.id,
           screenshotUrl,
           screenshotHash,
-          platform
+          platform: selectedPlatform
         })
       })
 
       const data = await res.json()
-      setResult(data)
-      
-      if (res.ok && data.status === "approved") {
+      if (res.status >= 400 && data.error) {
         toast({
-          title: "Proof Verified!",
-          message: `Successfully verified ${data.views} views. Payout added to wallet!`,
-          type: "success"
+          title: "Submission Error",
+          message: data.error,
+          type: "error"
         })
+        setResult({
+          status: 'rejected',
+          views: 0,
+          fraud_score: 10,
+          error: data.error,
+          reasons: [data.error]
+        })
+      } else {
+        setResult(data)
+        if (data.status === 'approved') {
+          toast({
+            title: "Verification Successful",
+            message: "Proof approved! Payout credited successfully.",
+            type: "success"
+          })
+        }
       }
     } catch (error) {
       console.error(error)
@@ -201,28 +206,118 @@ export default function SubmitScreenshotPage() {
     )
   }
 
-  const formatCountdown = (ms: number) => {
-    const totalSecs = Math.floor(ms / 1000)
-    const hours = Math.floor(totalSecs / 3600)
-    const mins = Math.floor((totalSecs % 3600) / 60)
-    const secs = totalSecs % 60
-    return `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`
+  // ── Render Ticking Countdown Screen if Under 24h Claim Lock ──
+  if (slot?.status === 'claimed' && timeRemaining > 0) {
+    const time = formatTimeRemaining(timeRemaining)
+    return (
+      <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6">
+        <Link 
+          href={`/dashboard/broadcaster/slots`} 
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/5 text-xs font-bold text-muted hover:text-white transition-all uppercase tracking-wider mb-10"
+        >
+          <ArrowLeft size={14} />
+          Back to Slots
+        </Link>
+
+        <Card className="p-8 sm:p-12 border-honey/20 bg-gradient-to-br from-honey/5 to-transparent rounded-[36px] shadow-[0_25px_60px_rgba(245,166,35,0.05)] text-center relative overflow-hidden select-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-honey/10 blur-[120px] rounded-full -z-10" />
+          
+          <div className="relative w-24 h-24 mx-auto mb-8 bg-honey/10 border border-honey/20 rounded-full flex items-center justify-center shadow-lg shadow-honey/5">
+            <div className="absolute inset-1.5 rounded-full border border-dashed border-honey/30 animate-spin" style={{ animationDuration: '20s' }} />
+            <span className="text-4xl filter drop-shadow-[0_4px_8px_rgba(245,166,35,0.4)]">🔒</span>
+          </div>
+
+          <div className="space-y-3 mb-10">
+            <h1 className="syne text-3xl font-black text-white tracking-tight uppercase">
+              24-Hour Wait Lock Active
+            </h1>
+            <p className="text-xs sm:text-sm text-secondary max-w-xl mx-auto font-light leading-relaxed">
+              BuzzHive requires social media statuses to run for the full **24-hour** lifecycle to capture your final view count. Screenshot uploads are locked until this window is complete.
+            </p>
+          </div>
+
+          <div className="flex justify-center items-center gap-4 sm:gap-6 mb-10">
+            {[
+              { val: time.hours, label: "Hours" },
+              { val: time.minutes, label: "Minutes" },
+              { val: time.seconds, label: "Seconds" }
+            ].map(({ val, label }, i) => (
+              <React.Fragment key={label}>
+                <div className="flex flex-col items-center">
+                  <div className="w-18 h-18 sm:w-22 sm:h-22 bg-[#0c0c0e] border border-white/5 rounded-2xl flex items-center justify-center font-mono font-black text-2xl sm:text-3xl text-honey shadow-inner relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+                    {val}
+                  </div>
+                  <span className="text-[9px] uppercase font-bold text-muted tracking-widest mt-2">{label}</span>
+                </div>
+                {i < 2 && (
+                  <span className="font-mono text-2xl font-bold text-honey/40 mt-[-16px] animate-pulse">:</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto bg-black/30 border border-white/5 rounded-2xl p-5 text-left mb-8">
+            <div>
+              <span className="text-[9px] uppercase font-bold text-muted tracking-widest block mb-0.5">Claimed At</span>
+              <span className="text-xs font-bold text-white font-mono">
+                {new Date(slot.claimed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] uppercase font-bold text-muted tracking-widest block mb-0.5">Unlocks At</span>
+              <span className="text-xs font-bold text-honey font-mono">
+                {new Date(new Date(slot.claimed_at).getTime() + 24 * 60 * 60 * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+            </div>
+          </div>
+
+          <Button variant="secondary" asChild>
+            <Link href="/dashboard/broadcaster/slots">Return to Slots List</Link>
+          </Button>
+        </Card>
+      </div>
+    )
   }
 
-  const theme = platform ? PLATFORM_THEMES[platform] : {
-    bgGradient: "from-white/5 to-white/[0.01]",
-    border: "border-white/5",
-    badgeText: "text-muted bg-white/5",
-    stepBg: "bg-white/5",
-    stepText: "text-muted",
-    accent: "text-white/40"
-  }
+  const themePlatform = selectedPlatform || "whatsapp"
+  const theme = PLATFORM_THEMES[themePlatform]
 
-  const isLocked = timeLeftMs !== null && timeLeftMs > 0
-  const isPlatformMismatch = result?.status === 'rejected' && result?.platform_confirmed === false
+  // ── Confetti effect styling ──
+  const confettiCss = `
+    @keyframes fall {
+      0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(400px) rotate(360deg); opacity: 0; }
+    }
+    .confetti-piece {
+      position: absolute; width: 10px; height: 10px; background-color: #f5a623;
+      border-radius: 50%; opacity: 0; animation: fall 3s infinite linear;
+    }
+  `
 
   return (
-    <div className="max-w-5xl mx-auto pb-36 lg:pb-24 px-4 sm:px-8">
+    <div className="max-w-5xl mx-auto pb-36 lg:pb-24 px-4 sm:px-8 relative">
+      <style>{confettiCss}</style>
+
+      {/* Confetti pieces shown on success */}
+      {result?.status === 'approved' && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden h-[400px]">
+          {Array.from({ length: 25 }).map((_, i) => (
+            <div 
+              key={i} 
+              className="confetti-piece"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                backgroundColor: ['#27c96b', '#f5a623', '#4d90fe', '#ff4d4d'][i % 4],
+                borderRadius: i % 2 === 0 ? '50%' : '0%',
+                transform: `scale(${Math.random() * 0.8 + 0.4})`
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Top Navigation Row */}
       <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
         <Link 
@@ -238,81 +333,34 @@ export default function SubmitScreenshotPage() {
         </div>
       </div>
 
-      {/* Header (Always at the top) */}
+      {/* Header */}
       <div className="space-y-2.5 text-left border-l-4 border-honey pl-4 mb-8">
         <h1 className="syne text-3xl sm:text-4xl font-black flex items-center gap-2.5 text-white tracking-tight">
           Submit Proof <Sparkles className="text-honey animate-pulse" size={24} />
         </h1>
-        <p className="text-secondary text-sm font-light leading-relaxed">Submit verified status screenshots to instantly credit your PostPay payout.</p>
+        <p className="text-secondary text-sm font-light leading-relaxed">Upload a screenshot of your active status to initiate view verification.</p>
       </div>
 
-      {isLocked ? (
-        /* 🔒 24-HOUR COUNTDOWN LOCKED SCREEN */
-        <div className="w-full bg-[#0d0d0f]/60 border border-white/5 rounded-3xl p-8 sm:p-12 text-center space-y-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-w-3xl mx-auto relative overflow-hidden backdrop-blur-md">
-          <div className="absolute -right-20 -top-20 w-60 h-60 bg-honey/5 rounded-full blur-3xl" />
-          <div className="absolute -left-20 -bottom-20 w-60 h-60 bg-amber-500/5 rounded-full blur-3xl" />
-
-          {/* Secure Padlock Animation */}
-          <div className="relative w-24 h-24 bg-honey/10 border border-honey/20 rounded-full flex items-center justify-center mx-auto shadow-inner shadow-honey/5 animate-pulse">
-            <Lock className="text-honey" size={40} />
-          </div>
-
-          <div className="space-y-3 max-w-xl mx-auto">
-            <h2 className="syne font-black text-2xl text-white uppercase tracking-wider">Status Period Active</h2>
-            <p className="text-sm text-secondary leading-relaxed font-light">
-              PostPay requires WhatsApp, Instagram, Snapchat, and TikTok status flyers to run for the full <strong className="text-white font-bold">24 hours</strong>. This guarantees maximum community reach and audience engagement before submission.
-            </p>
-          </div>
-
-          {/* Glowing Ticker Container */}
-          <div className="bg-black/40 border border-white/5 py-6 px-8 rounded-2xl inline-block shadow-inner">
-            <div className="text-[10px] uppercase font-bold text-muted tracking-widest font-mono mb-2">Uploader Unlocks In</div>
-            <div className="syne font-black text-3xl sm:text-4xl text-honey tracking-widest font-mono animate-pulse">
-              {timeLeftMs !== null ? formatCountdown(timeLeftMs) : "24:00:00"}
-            </div>
-          </div>
-
-          <div className="pt-4 max-w-md mx-auto border-t border-white/5 flex flex-col sm:flex-row gap-4 items-center justify-center text-xs text-muted">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-green-buzz" />
-              <span>Server-Verified Clock Lock</span>
-            </div>
-            <span className="hidden sm:inline">•</span>
-            <div>
-              <span>Claimed at: </span>
-              <span className="font-mono text-white bg-white/5 px-2 py-0.5 rounded-md text-[10px]">
-                {slot && new Date(slot.claimed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* 🔓 UNLOCKED UPLOAD & PLATFORM SELECTION FLOW */
-        <div className="flex flex-col lg:flex-row gap-12 items-start">
-          
-          {/* LEFT COLUMN: Premium Smartphone Skeleton Uploader */}
-          <div className="w-full lg:w-[330px] shrink-0 lg:sticky lg:top-24 flex flex-col items-center self-start relative">
-            
-            {/* Disabled Overlay if no platform is selected */}
-            {platform === null && (
-              <div className="absolute inset-0 bg-[#0d0d0f]/80 backdrop-blur-sm rounded-3xl lg:rounded-[36px] z-20 flex flex-col items-center justify-center p-6 text-center border border-white/5 gap-4">
-                <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-muted">
-                  <Smartphone size={24} className="animate-bounce" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm text-white">Select Platform First</h4>
-                  <p className="text-[10px] text-muted max-w-[200px] leading-relaxed">
-                    Pick a platform in Step 1 on the right to unlock your screenshot uploader.
-                  </p>
-                </div>
+      <div className="flex flex-col lg:flex-row gap-12 items-start">
+        {/* LEFT COLUMN: Premium Smartphone Skeleton Uploader */}
+        <div className="w-full lg:w-[330px] shrink-0 lg:sticky lg:top-24 flex flex-col items-center self-start">
+          {!selectedPlatform ? (
+            <div className="relative rounded-3xl lg:rounded-[36px] border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center w-full max-w-md lg:max-w-[310px] h-[280px] lg:h-[550px] lg:aspect-[9/16] mx-auto p-8 text-center select-none shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
+              <div className="w-16 h-16 bg-white/5 border border-white/5 rounded-3xl flex items-center justify-center text-muted mb-4 font-mono font-bold">
+                🔒
               </div>
-            )}
-
+              <div className="font-bold text-sm text-white mb-2">Uploader Locked</div>
+              <p className="text-[11px] text-muted leading-relaxed max-w-[200px] mx-auto font-light">
+                Please select your social media posting platform in **Step 1** to unlock the screenshot uploader.
+              </p>
+            </div>
+          ) : (
             <ScreenshotUpload 
               value={screenshotUrl}
               onUpload={(url, hash) => {
                 setScreenshotUrl(url)
                 setScreenshotHash(hash)
+                setResult(null)
               }}
               onRemove={() => {
                 setScreenshotUrl("")
@@ -320,285 +368,276 @@ export default function SubmitScreenshotPage() {
                 setResult(null)
               }}
             />
-          </div>
+          )}
+        </div>
 
-          {/* RIGHT COLUMN: Interactive platform selector, Instructions, Rules & Action */}
-          <div className="flex-1 w-full space-y-8">
-            
-            {/* STEP 1: Visually Clear Platform Selection Cards */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                <span className="w-5 h-5 rounded-full bg-honey/10 text-honey flex items-center justify-center text-xs font-black">1</span>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-white">Select social platform used</h3>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {(['whatsapp', 'instagram', 'snapchat', 'tiktok'] as AdPlatform[]).map((p) => {
-                  const isSelected = platform === p;
-                  const pTheme = PLATFORM_THEMES[p];
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => {
-                        setPlatform(p);
-                        // Reset uploads on switch for secure hashing integrity
-                        setScreenshotUrl("");
-                        setScreenshotHash("");
-                        setResult(null);
-                      }}
-                      className={cn(
-                        "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 gap-2.5 group relative overflow-hidden",
-                        isSelected 
-                          ? `bg-gradient-to-b ${pTheme.bgGradient} ${pTheme.border} text-white shadow-[0_4px_20px_rgba(245,166,35,0.15)] scale-[1.02]`
-                          : "bg-[#0d0d0f]/60 border-white/5 text-muted hover:text-white hover:border-white/10 hover:bg-white/[0.02]"
-                      )}
-                    >
-                      <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform duration-300">
-                        {PLATFORM_ICONS[p]}
+        {/* RIGHT COLUMN: Instructions, Guidelines & Action Trigger */}
+        <div className="flex-1 w-full space-y-8">
+          {/* Step 1: Platform Selection Cards */}
+          <div className="space-y-4">
+            <label className="text-xs font-mono uppercase tracking-widest text-muted block font-bold">
+              Step 1: Select Platform Used for Posting
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {(["whatsapp", "instagram", "snapchat", "tiktok"] as AdPlatform[]).map((p) => {
+                const isSelected = selectedPlatform === p
+                const isSlotPlatform = slot?.platform === p
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlatform(p)
+                      setResult(null)
+                    }}
+                    className={cn(
+                      "relative p-4 rounded-2xl border text-center flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:scale-102 hover:shadow-lg cursor-pointer min-h-[110px]",
+                      isSelected
+                        ? "border-honey bg-honey/10 text-white shadow-[0_10px_20px_rgba(245,166,35,0.1)]"
+                        : "border-white/5 bg-white/[0.01] hover:border-white/10 text-secondary hover:text-white"
+                    )}
+                  >
+                    <span className="text-3xl filter drop-shadow-md">{PLATFORM_ICONS[p]}</span>
+                    <span className="font-bold text-[10px] uppercase tracking-wider">{PLATFORM_LABELS[p]}</span>
+                    
+                    {isSlotPlatform && (
+                      <span className="absolute top-2 right-2 text-[7px] font-black uppercase bg-green-buzz/20 text-green-buzz border border-green-buzz/10 px-1 rounded">
+                        Registered
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest">
-                        {PLATFORM_LABELS[p]?.split(" ")[0] || p}
-                      </span>
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-honey animate-pulse" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
-            {/* STEP 2: Instructions and Submissions (Unlocked only after platform chosen) */}
-            {platform === null ? (
-              /* Waiting state graphic */
-              <div className="bg-[#0d0d0f]/40 border border-white/5 rounded-3xl p-8 text-center space-y-4 shadow-inner">
-                <HelpCircle size={36} className="text-muted mx-auto animate-pulse" />
+            {/* Warning for Platform Mismatch */}
+            {selectedPlatform && slot?.platform && selectedPlatform !== slot.platform && (
+              <div className="p-4 bg-red-buzz/10 border border-red-buzz/20 rounded-2xl flex items-start gap-3 text-red-buzz shadow-sm animate-fade-in">
+                <AlertTriangle className="shrink-0 mt-0.5" size={18} />
                 <div className="space-y-1">
-                  <h4 className="font-extrabold text-sm text-white">Guidelines Awaiting Platform Selection</h4>
-                  <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">
-                    Once you select which social media channel you ran the ad status on, dynamic upload instructions and quality parameters will unlock.
+                  <div className="font-bold text-xs uppercase tracking-wider text-white">Platform Mismatch Warning!</div>
+                  <p className="text-[11px] leading-relaxed text-secondary font-light">
+                    This ad slot is registered for <span className="font-bold text-white uppercase">{PLATFORM_LABELS[slot.platform]}</span>. 
+                    You have selected <span className="font-bold text-white uppercase">{PLATFORM_LABELS[selectedPlatform]}</span>. 
+                    Submitting proof for the wrong platform will be **rejected automatically** by the AI Auditor. Please select {PLATFORM_LABELS[slot.platform]} or claim a new slot for {PLATFORM_LABELS[selectedPlatform]}.
                   </p>
                 </div>
               </div>
+            )}
+          </div>
+
+          <div className="space-y-8">
+            {/* Dynamic Platform Specific Instructions */}
+            {selectedPlatform && (
+              <div className={cn(
+                "p-6 sm:p-8 border bg-transparent sm:bg-gradient-to-br rounded-3xl space-y-6 shadow-xl transition-all duration-500",
+                theme.border,
+                theme.bgGradient
+              )}>
+                <div className="flex items-center gap-4 border-b border-white/5 pb-4">
+                  <span className="text-4xl filter drop-shadow-md">{PLATFORM_ICONS[selectedPlatform]}</span>
+                  <div>
+                    <div className="font-extrabold text-base text-white">Posting on {PLATFORM_LABELS[selectedPlatform]}</div>
+                    <div className="text-[10px] text-muted uppercase tracking-widest font-black mt-0.5">Step-by-step Posting Guidelines</div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {PLATFORM_POSTING_INSTRUCTIONS[selectedPlatform]?.map((step, i) => (
+                    <div key={i} className="flex gap-4 items-start bg-black/20 p-4 border border-white/5 rounded-2xl hover:border-white/10 transition-all duration-300">
+                      <span className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 shadow-md",
+                        theme.stepBg,
+                        theme.stepText
+                      )}>
+                        {i + 1}
+                      </span>
+                      <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light pt-0.5">{step}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Submission Guidelines Checklists */}
+            <div className="space-y-4 bg-transparent sm:bg-white/[0.02] border-0 sm:border border-white/5 rounded-none sm:rounded-3xl p-0 sm:p-8 shadow-none sm:shadow-inner">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-white flex items-center gap-2 border-b border-white/5 pb-3">
+                <ShieldCheck size={16} className="text-honey" /> Rules & Quality Guidelines
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  "Ensure the screenshot is clear and completely unedited.",
+                  "The viewer list 'eye' icon and view count must be visible.",
+                  "Status upload must have been up for at least 24 hours.",
+                  "Do not crop the image edge borders or device status bar."
+                ].map((rule, i) => (
+                  <div key={i} className="text-xs sm:text-sm text-secondary flex items-start gap-3 leading-relaxed font-light bg-black/10 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <CheckCircle2 size={16} className="text-honey shrink-0 mt-0.5" />
+                    <span>{rule}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Render Verification Output States */}
+            {!result ? (
+              <Button 
+                className="w-full mt-6 py-4 text-sm font-black uppercase tracking-wider bg-gradient-to-r from-honey to-amber-500 hover:from-amber-500 hover:to-honey text-black rounded-2xl shadow-[0_4px_25px_rgba(245,166,35,0.2)] hover:shadow-[0_4px_30px_rgba(245,166,35,0.35)] transition-all duration-300" 
+                size="lg" 
+                disabled={!screenshotUrl || verifying || !selectedPlatform}
+                onClick={handleVerify}
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                    Analyzing your screenshot with AI...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} className="mr-2" />
+                    Verify Now
+                  </>
+                )}
+              </Button>
             ) : (
-              <div className="space-y-8 animate-fade-in">
-                
-                {/* Dynamic Platform Specific Instructions */}
-                <div className={`p-6 sm:p-8 border ${theme.border} bg-gradient-to-br ${theme.bgGradient} rounded-3xl space-y-6 shadow-xl`}>
-                  <div className="flex items-center gap-4 border-b border-white/5 pb-4">
-                    <span className="text-4xl filter drop-shadow-md">{PLATFORM_ICONS[platform]}</span>
-                    <div>
-                      <div className="font-extrabold text-base text-white">Posting on {PLATFORM_LABELS[platform]}</div>
-                      <div className="text-[10px] text-muted uppercase tracking-widest font-black mt-0.5">Dynamic Posting Guidelines</div>
+              <div className="animate-fade-in pt-4 space-y-6">
+                {/* Main verdict */}
+                {result.status === 'approved' ? (
+                  <div className="p-6 bg-green-buzz/10 border border-green-buzz/20 rounded-3xl space-y-4 shadow-[0_10px_30px_rgba(39,201,107,0.15)]">
+                    <div className="flex items-center gap-3 text-green-buzz font-black text-sm uppercase tracking-wider">
+                      <CheckCircle2 size={22} />
+                      Verification Successful
+                    </div>
+                    <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
+                      Our verification system successfully verified <span className="font-bold text-white text-base">{result.views} views</span> on your post. 
+                      Rewards of <span className="font-black text-white text-base">GHS {(((result.views || 0) / 1000) * (campaign?.platform_broadcaster_cpm?.[selectedPlatform || "whatsapp"] || campaign?.broadcaster_cpm || 120)).toFixed(2)}</span> have been credited to your wallet balance instantly!
+                    </p>
+                    {/* Positive signals */}
+                    {result.positive_signals && result.positive_signals.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-green-buzz/10">
+                        {result.positive_signals.map((signal: string, i: number) => (
+                          <div key={i} className="flex gap-2 text-xs text-secondary leading-relaxed font-light">
+                            <CheckCircle2 size={12} className="text-green-buzz mt-0.5 shrink-0" />
+                            <span>{signal}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button className="w-full mt-2" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/wallet")}>
+                      Go to My Wallet
+                    </Button>
+                  </div>
+                ) : result.status === 'flagged' ? (
+                  <div className="p-6 bg-honey/10 border border-honey/20 rounded-3xl space-y-4 shadow-[0_10px_30px_rgba(245,166,35,0.15)]">
+                    <div className="flex items-center gap-3 text-honey font-black text-sm uppercase tracking-wider">
+                      <AlertTriangle size={22} />
+                      Under Manual Review
+                    </div>
+                    <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
+                      Our system detected potential details that require a quick verification check. 
+                      Your slot has been submitted for manual review. A team member will verify it within 12 hours.
+                    </p>
+                    {result.reasons && result.reasons.length > 0 && (
+                      <div className="space-y-2 pt-3 border-t border-honey/10">
+                        <div className="text-[10px] uppercase font-bold text-muted tracking-wider mb-1">Details in Review</div>
+                        {result.reasons.map((reason: string, i: number) => (
+                          <div key={i} className="flex gap-2 text-xs text-secondary leading-relaxed font-light">
+                            <AlertTriangle size={12} className="text-honey mt-0.5 shrink-0" />
+                            <span>{reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button className="w-full mt-2" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/slots")}>
+                      Back to My Slots
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="p-6 bg-red-buzz/10 border border-red-buzz/20 rounded-3xl space-y-4 shadow-[0_10px_30px_rgba(255,77,77,0.15)]">
+                    <div className="flex items-center gap-3 text-red-buzz font-black text-sm uppercase tracking-wider">
+                      <AlertOctagon size={22} />
+                      Verification Rejected
+                    </div>
+                    
+                    <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
+                      {result.platform_confirmed === false ? (
+                        `Verification failed. You selected ${PLATFORM_LABELS[selectedPlatform || "whatsapp"]}, but the uploaded screenshot does not look like a ${PLATFORM_LABELS[selectedPlatform || "whatsapp"]} status. Please try again.`
+                      ) : (
+                        result.rejection_reason || result.error || "This screenshot was rejected. Ensure the image clearly displays the active view count, displays correct platform design templates, and is not a duplicate."
+                      )}
+                    </p>
+
+                    {result.reasons && result.reasons.length > 0 && result.platform_confirmed !== false && (
+                      <div className="space-y-2 pt-2 border-t border-red-buzz/10">
+                        {result.reasons.map((reason: string, i: number) => (
+                          <div key={i} className="flex gap-2 text-xs text-secondary leading-relaxed font-light">
+                            <span className="text-red-buzz mt-0.5 shrink-0 font-bold">×</span>
+                            <span>{reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                      <Button className="flex-1" variant="outline" onClick={() => {
+                        setScreenshotUrl("")
+                        setScreenshotHash("")
+                        setResult(null)
+                      }}>
+                        Retry Submission
+                      </Button>
+                      <Button className="flex-1" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/slots")}>
+                        Back to Slots
+                      </Button>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    {PLATFORM_POSTING_INSTRUCTIONS[platform].map((step, i) => (
-                      <div key={i} className="flex gap-4 items-start bg-black/20 p-4 border border-white/5 rounded-2xl hover:border-white/10 transition-all duration-300">
-                        <span className={`w-8 h-8 rounded-full ${theme.stepBg} ${theme.stepText} flex items-center justify-center text-xs font-black shrink-0 mt-0.5 shadow-md`}>
-                          {i + 1}
-                        </span>
-                        <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light pt-0.5">{step}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                )}
 
-                {/* Submission Rules & Quality Parameters */}
-                <div className="space-y-4 bg-white/[0.02] border border-white/5 rounded-3xl p-6 sm:p-8 shadow-inner">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-white flex items-center gap-2 border-b border-white/5 pb-3">
-                    <ShieldCheck size={16} className="text-honey" /> Rules & Quality Guidelines
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      `Ensure the screenshot shows standard ${PLATFORM_LABELS[platform]} UI markers.`,
-                      "The status must have run for the complete 24-hour cycle.",
-                      "Cropped, heavily edited, or duplicate screenshots will be auto-rejected.",
-                      "Make sure the total view count is clearly visible and readable."
-                    ].map((rule, i) => (
-                      <div key={i} className="text-xs sm:text-sm text-secondary flex items-start gap-3 leading-relaxed font-light bg-black/10 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-                        <CheckCircle2 size={16} className="text-honey shrink-0 mt-0.5" />
-                        <span>{rule}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Verification Output States */}
-                {!result ? (
-                  <Button 
-                    className="w-full mt-6 py-4 text-sm font-black uppercase tracking-wider bg-gradient-to-r from-honey to-amber-500 hover:from-amber-500 hover:to-honey text-black rounded-2xl shadow-[0_4px_25px_rgba(245,166,35,0.2)] hover:shadow-[0_4px_30px_rgba(245,166,35,0.35)] transition-all duration-300" 
-                    size="lg" 
-                    disabled={!screenshotUrl || verifying}
-                    onClick={handleVerify}
-                  >
-                    {verifying ? (
-                      <>
-                        <Loader2 size={16} className="mr-2 animate-spin" />
-                        Analyzing Screenshot with AI...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={16} className="mr-2" />
-                        Verify Now & Submit Proof
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  <div className="animate-fade-in pt-4 space-y-6">
-                    {/* Approved Confetti State */}
-                    {result.status === 'approved' ? (
-                      <div className="p-8 bg-green-buzz/10 border border-green-buzz/20 rounded-3xl space-y-6 shadow-[0_10px_30px_rgba(39,201,107,0.15)] text-center relative overflow-hidden">
-                        {/* Premium Checkmark & Payout Badge */}
-                        <div className="w-20 h-20 bg-green-buzz/10 border-2 border-green-buzz/40 rounded-full flex items-center justify-center mx-auto shadow-inner animate-bounce duration-1000">
-                          <CheckCircle2 size={40} className="text-green-buzz" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="text-[10px] uppercase font-bold text-green-buzz tracking-widest font-mono">Verification Successful</div>
-                          <h2 className="syne font-black text-3xl sm:text-4xl text-honey tracking-tight">GHS Verified Payout!</h2>
-                          <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light max-w-md mx-auto">
-                            PostPay's AI verification engine verified <strong className="text-white font-bold text-base">{result.views} views</strong> on your status screenshot. Your wallet balance has been instantly credited.
-                          </p>
-                        </div>
-                        {result.positive_signals && result.positive_signals.length > 0 && (
-                          <div className="space-y-2.5 pt-4 border-t border-white/5 text-left max-w-md mx-auto">
-                            <div className="text-[10px] uppercase font-bold text-muted tracking-wider">AI Verified Authenticity Signals</div>
-                            {result.positive_signals.slice(0, 3).map((signal: string, i: number) => (
-                              <div key={i} className="flex gap-2.5 text-xs text-secondary leading-relaxed font-light">
-                                <CheckCircle2 size={14} className="text-green-buzz mt-0.5 shrink-0" />
-                                <span>{signal}</span>
-                              </div>
-                            ))}
+                {/* Forensics score breakdown */}
+                {result.layer_scores && result.platform_confirmed !== false && (
+                  <div className="p-5 bg-black/40 border border-white/5 rounded-3xl space-y-4 shadow-inner">
+                    <div className="text-[10px] uppercase font-bold text-muted tracking-widest mb-1 font-mono">
+                      Verification Integrity Score
+                    </div>
+                    <div className="space-y-3.5">
+                      {[
+                        { label: 'Image Consistency (ELA)', score: result.layer_scores.ela, max: 35 },
+                        { label: 'File Metadata Checks', score: result.layer_scores.metadata, max: 25 },
+                        { label: 'Proof Context Analysis', score: result.layer_scores.gemini, max: 40 },
+                      ].map(({ label, score, max }) => (
+                        <div key={label} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-light">
+                            <span className="text-secondary">{label}</span>
+                            <span className="font-bold text-white">{score}/{max}</span>
                           </div>
-                        )}
-                        <Button className="w-full mt-4" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/wallet")}>
-                          Go to My Wallet
-                        </Button>
-                      </div>
-                    ) : result.status === 'flagged' ? (
-                      /* Flagged State */
-                      <div className="p-6 bg-honey/10 border border-honey/20 rounded-3xl space-y-4 shadow-[0_10px_30px_rgba(245,166,35,0.15)] text-left">
-                        <div className="flex items-center gap-3 text-honey font-black text-sm uppercase tracking-wider">
-                          <AlertTriangle size={22} />
-                          Under Manual Review
-                        </div>
-                        <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
-                          Our system detected potential layout details that require a quick human double-check. Your proof has been logged. Our admins will verify and release your payouts in under 12 hours.
-                        </p>
-                        {result.reasons && result.reasons.length > 0 && (
-                          <div className="space-y-2 pt-3 border-t border-honey/10">
-                            <div className="text-[10px] uppercase font-bold text-muted tracking-wider mb-1">Details in Review</div>
-                            {result.reasons.map((reason: string, i: number) => (
-                              <div key={i} className="flex gap-2 text-xs text-secondary leading-relaxed font-light">
-                                <AlertTriangle size={12} className="text-honey mt-0.5 shrink-0" />
-                                <span>{reason}</span>
-                              </div>
-                            ))}
+                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500",
+                                score < max * 0.3 ? "bg-green-buzz" : score < max * 0.7 ? "bg-honey" : "bg-red-buzz"
+                              )}
+                              style={{ width: `${(score / max) * 100}%` }}
+                            />
                           </div>
-                        )}
-                        <Button className="w-full" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/slots")}>
-                          Back to My Slots
-                        </Button>
-                      </div>
-                    ) : isPlatformMismatch ? (
-                      /* ❌ PLATFORM MISMATCH REJECTION CARD */
-                      <div className="p-8 bg-red-buzz/10 border border-red-buzz/20 rounded-3xl space-y-6 shadow-[0_10px_30px_rgba(255,77,77,0.15)] text-left animate-shake">
-                        <div className="flex items-center gap-3 text-red-buzz font-black text-sm uppercase tracking-wider">
-                          <AlertOctagon size={24} className="animate-pulse" />
-                          Platform Mismatch Failed
                         </div>
-                        <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
-                          Verification failed. You selected <strong className="text-white font-bold">{PLATFORM_LABELS[platform]}</strong>, but the uploaded screenshot does not look like a <strong className="text-white font-bold">{PLATFORM_LABELS[platform]}</strong> status. Please try again.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                          <Button className="flex-1 py-3 text-xs uppercase font-bold tracking-wider rounded-xl" variant="outline" onClick={() => { setResult(null); setScreenshotUrl(""); setScreenshotHash(""); }}>
-                            Retry Submission
-                          </Button>
-                          <Button className="flex-1 py-3 text-xs uppercase font-bold tracking-wider rounded-xl" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/slots")}>
-                            Back to Slots
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* General Rejection Card */
-                      <div className="p-6 bg-red-buzz/10 border border-red-buzz/20 rounded-3xl space-y-4 shadow-[0_10px_30px_rgba(255,77,77,0.15)] text-left">
-                        <div className="flex items-center gap-3 text-red-buzz font-black text-sm uppercase tracking-wider">
-                          <AlertOctagon size={22} />
-                          Verification Rejected
-                        </div>
-                        {result.reasons && result.reasons.length > 0 ? (
-                          <div className="space-y-2">
-                            {result.reasons.map((reason: string, i: number) => (
-                              <div key={i} className="flex gap-2 text-xs text-secondary leading-relaxed font-light">
-                                <span className="text-red-buzz mt-0.5 shrink-0 font-bold">×</span>
-                                <span>{reason}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
-                            {result.rejection_reason || result.error || "This screenshot was rejected. Ensure the image clearly displays the active view count, displays correct platform design templates, and is not a duplicate."}
-                          </p>
-                        )}
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                          <Button className="flex-1" variant="outline" onClick={() => { setResult(null); setScreenshotUrl(""); setScreenshotHash(""); }}>
-                            Retry Submission
-                          </Button>
-                          <Button className="flex-1" variant="secondary" onClick={() => router.push("/dashboard/broadcaster/slots")}>
-                            Back to Slots
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Forensics score breakdown — shown to all */}
-                    {result.layer_scores && (
-                      <div className="p-5 bg-black/40 border border-white/5 rounded-3xl space-y-4 shadow-inner">
-                        <div className="text-[10px] uppercase font-bold text-muted tracking-widest mb-1 font-mono">
-                          Verification Integrity Score
-                        </div>
-                        <div className="space-y-3.5">
-                          {[
-                            { label: 'Image Consistency (ELA)', score: result.layer_scores.ela, max: 35 },
-                            { label: 'File Metadata Checks', score: result.layer_scores.metadata, max: 25 },
-                            { label: 'Proof Context Analysis', score: result.layer_scores.gemini, max: 40 },
-                          ].map(({ label, score, max }) => (
-                            <div key={label} className="space-y-1.5">
-                              <div className="flex justify-between text-xs font-light">
-                                <span className="text-secondary">{label}</span>
-                                <span className="font-bold text-white">{score}/{max}</span>
-                              </div>
-                              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full transition-all duration-500",
-                                    score < max * 0.3 ? "bg-green-buzz" : score < max * 0.7 ? "bg-honey" : "bg-red-buzz"
-                                  )}
-                                  style={{ width: `${(score / max) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
-                          <span className="text-[10px] uppercase font-bold text-muted tracking-widest font-mono">Manipulation Risk Score</span>
-                          <span className={cn(
-                            "syne font-black text-xl",
-                            (result.final_score ?? 0) < 30 ? "text-green-buzz" :
-                            (result.final_score ?? 0) < 60 ? "text-honey" : "text-red-buzz"
-                          )}>
-                            {result.final_score ?? 0}/100
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+                      <span className="text-[10px] uppercase font-bold text-muted tracking-widest font-mono">Manipulation Risk Score</span>
+                      <span className={cn(
+                        "syne font-black text-xl",
+                        (result.final_score ?? 0) < 30 ? "text-green-buzz" :
+                        (result.final_score ?? 0) < 60 ? "text-honey" : "text-red-buzz"
+                      )}>
+                        {result.final_score ?? 0}/100
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
