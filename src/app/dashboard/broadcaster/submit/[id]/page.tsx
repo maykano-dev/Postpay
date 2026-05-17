@@ -83,6 +83,7 @@ export default function SubmitScreenshotPage() {
     views: number,
     fraud_score: number,
     rejection_reason?: string,
+    error?: string,
     positive_signals?: string[],
     reasons?: string[],
     layer_scores?: {
@@ -330,7 +331,7 @@ export default function SubmitScreenshotPage() {
                       </div>
                     ) : (
                       <p className="text-xs sm:text-sm text-secondary leading-relaxed font-light">
-                        {result.rejection_reason || "This screenshot was rejected. Ensure the image clearly displays the active view count, displays correct platform design templates, and is not a duplicate."}
+                        {result.rejection_reason || result.error || "This screenshot was rejected. Ensure the image clearly displays the active view count, displays correct platform design templates, and is not a duplicate."}
                       </p>
                     )}
                     <div className="flex flex-col sm:flex-row gap-3 pt-2">
